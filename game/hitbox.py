@@ -16,6 +16,7 @@ from game.settings import (
     LOW,
     NEAR,
     PLAYER_DRAW_Z,
+    WAGON,
 )
 
 PX_PER_UNIT = 170.0
@@ -42,6 +43,10 @@ BANNER_HALF_LANE = 0.36
 BIN_W = 76.0
 CRATE_W = 100.0
 OBSTACLE_HALF_Z = 0.36
+WAGON_PX = 168.0
+WAGON_W = 340.0
+WAGON_HALF_Z = 4.2
+WAGON_LAND = 0.14
 
 PICKUP_HALF_LANE = 0.14
 PICKUP_HALF_Z = 0.42
@@ -98,12 +103,13 @@ def player_hitbox(player: object) -> Box:
     height = float(getattr(player, "height"))
     sliding = bool(getattr(player, "sliding"))
     rocket = float(getattr(player, "rocket_time"))
+    floor = float(getattr(player, "floor", 0.0))
     if rocket > 0.0:
         feet = max(height, ROCKET_FLOOR)
         top = feet + PLAYER_BODY
     elif sliding:
-        feet = 0.0
-        top = PLAYER_SLIDE
+        feet = floor
+        top = floor + PLAYER_SLIDE
     else:
         feet = height
         top = height + PLAYER_BODY
@@ -119,6 +125,7 @@ def player_hitbox(player: object) -> Box:
 
 def obstacle_box(kind: str, lane: float, z: float, distance: float) -> Box:
     bit = variant_bit(lane, z, distance)
+    half_z = OBSTACLE_HALF_Z
     if kind == LOW:
         width = HYDRANT_W if bit else HEDGE_W
         bottom = 0.0
@@ -133,11 +140,25 @@ def obstacle_box(kind: str, lane: float, z: float, distance: float) -> Box:
         bottom = 0.0
         top = px_to_units(FULL_PX)
         half_lane = width * 0.5 / LANE_SPREAD
+    elif kind == WAGON:
+        bottom = 0.0
+        top = px_to_units(WAGON_PX)
+        half_lane = WAGON_W * 0.5 / LANE_SPREAD
+        half_z = WAGON_HALF_Z
     else:
         bottom = 0.0
         top = px_to_units(FULL_PX)
         half_lane = BIN_W * 0.5 / LANE_SPREAD
-    return Box(float(lane), half_lane, float(z), OBSTACLE_HALF_Z, bottom, top)
+    return Box(float(lane), half_lane, float(z), half_z, bottom, top)
+
+
+def on_deck(body: Box, deck: Box) -> bool:
+    """Pies sobre el techo del vagón (no embistiendo el frente)."""
+    if abs(body.lane - deck.lane) >= body.half_lane + deck.half_lane:
+        return False
+    if abs(body.z - deck.z) >= body.half_z + deck.half_z:
+        return False
+    return body.bottom >= deck.top - WAGON_LAND
 
 
 def pickup_box(lane: float, z: float, span: float = 1.0) -> Box:

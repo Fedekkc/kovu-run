@@ -4,7 +4,18 @@ from __future__ import annotations
 
 import math
 
-from game.hitbox import BANNER_HALF_LANE, BIN_W as BIN_PX, CRATE_W as CRATE_PX, FULL_PX, HIGH_GAP_PX, HIGH_PX, HYDRANT_W as HYDRANT_PX, LOW_PX
+from game.hitbox import (
+    BANNER_HALF_LANE,
+    BIN_W as BIN_PX,
+    CRATE_W as CRATE_PX,
+    FULL_PX,
+    HIGH_GAP_PX,
+    HIGH_PX,
+    HYDRANT_W as HYDRANT_PX,
+    LOW_PX,
+    WAGON_PX,
+    WAGON_W as WAGON_PX_W,
+)
 from game.palette import Tone
 from game.settings import ART_PIXEL, LANE_SPREAD
 from tools.forge.canvas import Canvas
@@ -24,6 +35,8 @@ BIN_W = round(BIN_PX / ART_PIXEL)
 BIN_H = round(FULL_PX / ART_PIXEL)
 CRATE_W = round(CRATE_PX / ART_PIXEL)
 CRATE_H = round(FULL_PX / ART_PIXEL)
+WAGON_W = round(WAGON_PX_W / ART_PIXEL)
+WAGON_H = round(WAGON_PX / ART_PIXEL)
 LINE_FRAMES = 2
 
 _SHIRT = "shirt"
@@ -161,6 +174,42 @@ def crates() -> Canvas:
     _crate(c, 0, CRATE_H - 11, CRATE_W, Tone.GERANIUM, Tone.BRICK)
     _crate(c, 1, CRATE_H - 22, CRATE_W - 2, Tone.CORAL, Tone.SUN)
     _crate(c, 3, CRATE_H - 33, CRATE_W - 7, Tone.LEAF_LIGHT, Tone.LEAF)
+    c.outline(Tone.INK)
+    return c
+
+
+def wagon() -> Canvas:
+    """Big freight car with a flat roof Kovu can run on."""
+    c = Canvas(WAGON_W, WAGON_H)
+    deck = 5
+    body_top = deck + 3
+    body_bot = WAGON_H - 9
+    c.rect(2, body_top, WAGON_W - 4, body_bot - body_top, Tone.STONE)
+    c.vline(2, body_top, body_bot, Tone.STONE_LIGHT)
+    c.vline(3, body_top + 1, body_bot - 1, Tone.STONE_LIGHT)
+    c.vline(WAGON_W - 3, body_top, body_bot, Tone.STONE_DARK)
+    c.vline(WAGON_W - 4, body_top + 1, body_bot - 1, Tone.STONE_DARK)
+    for y in range(body_top + 4, body_bot - 2, 5):
+        c.hline(5, WAGON_W - 6, y, Tone.STONE_DARK)
+    pane_w = 8
+    gap = max(4, (WAGON_W - 16 - pane_w * 4) // 5)
+    x = 8 + gap
+    for _ in range(4):
+        c.rect(x, body_top + 6, pane_w, 9, Tone.WINDOW_DIM)
+        c.hline(x + 1, x + pane_w - 2, body_top + 7, Tone.SUN)
+        c.dot(x + 2, body_top + 9, Tone.CREAM)
+        x += pane_w + gap
+    c.rect(0, deck, WAGON_W, 4, Tone.CURB)
+    c.hline(1, WAGON_W - 2, deck, Tone.CREAM)
+    c.hline(0, WAGON_W - 1, deck + 1, Tone.CURB)
+    c.hline(0, WAGON_W - 1, deck + 3, Tone.CURB_DARK)
+    c.rect(3, body_bot, WAGON_W - 6, 3, Tone.PLUM_DARK)
+    for wx in (8, WAGON_W // 3, (2 * WAGON_W) // 3, WAGON_W - 14):
+        c.rect(wx, WAGON_H - 8, 7, 6, Tone.INK)
+        c.dot(wx + 2, WAGON_H - 6, Tone.STONE_LIGHT)
+        c.dot(wx + 4, WAGON_H - 5, Tone.STONE)
+    c.rect(WAGON_W // 2 - 2, body_top + 1, 5, 3, Tone.GERANIUM)
+    c.dot(WAGON_W // 2, body_top + 2, Tone.SUN)
     c.outline(Tone.INK)
     return c
 

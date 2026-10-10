@@ -24,6 +24,7 @@ HYDRANT = "hydrant"
 BANNER = "banner"
 BIN = "bin"
 CRATE = "crate"
+WAGON = "wagon"
 TREE = "tree"
 SHRUB = "shrub"
 JUMP_ICON = "jump"
@@ -59,6 +60,7 @@ SLOTS: tuple[str, ...] = (
     BANNER,
     BIN,
     CRATE,
+    WAGON,
     TREE,
     SHRUB,
     BISCUIT,

@@ -16,7 +16,7 @@ from game.name import NameBuffer
 from game.options import OptionsStore
 from game.render import Renderer
 from game.session import Session
-from game.settings import FPS, HEIGHT, WIDTH
+from game.settings import FPS
 from game.telemetry import Telemetry
 from game.ui import (
     draw_accounts,
@@ -30,7 +30,7 @@ from game.ui import (
     draw_upgrades,
 )
 from game.upgrades import banked_biscuits, lines_for, purchase, run_mods
-from game.window import decorate
+from game.window import decorate, open_display
 
 COPY_SAVE_FAILED = "No se pudo guardar."
 CAUGHT_AT = 1.05
@@ -53,10 +53,11 @@ class State(StrEnum):
 
 class OptionRow(IntEnum):
     VOLUME = 0
-    HITBOXES = 1
-    TELEMETRY = 2
-    LANGUAGE = 3
-    CREDITS = 4
+    FULLSCREEN = 1
+    HITBOXES = 2
+    TELEMETRY = 3
+    LANGUAGE = 4
+    CREDITS = 5
 
 
 def main() -> None:
@@ -79,13 +80,14 @@ def main() -> None:
 
 def _run() -> None:
     pygame.init()
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    options = OptionsStore()
+    screen = open_display(options.value.fullscreen)
     decorate()
     clock = pygame.time.Clock()
 
-    options = OptionsStore()
     audio = Audio()
     audio.set_volume(options.value.volume)
+    audio.play_music()
     telemetry = Telemetry()
 
     session = Session()
@@ -125,6 +127,7 @@ def _run() -> None:
         biscuits_saved = False
         saved_count = 0
         state = State.PLAY
+        audio.start()
 
     def bank_biscuits() -> None:
         nonlocal biscuits_saved, saved_count
@@ -191,15 +194,29 @@ def _run() -> None:
         option_index = 0
         state = State.OPTIONS
 
+    def apply_display() -> None:
+        nonlocal screen
+        screen = open_display(options.value.fullscreen)
+        decorate()
+        renderer.attach(screen)
+        backdrop.attach(screen)
+
     def apply_options() -> None:
         renderer.show_hitboxes = options.value.show_hitboxes
         audio.set_volume(options.value.volume)
+        audio.play_music()
+
+    def toggle_fullscreen() -> None:
+        options.toggle_fullscreen()
+        apply_display()
 
     def nudge_option(delta: int) -> None:
         row = OptionRow(option_index)
         if row == OptionRow.VOLUME:
             options.set_volume(options.value.volume + delta)
             apply_options()
+        elif row == OptionRow.FULLSCREEN and delta != 0:
+            toggle_fullscreen()
         elif row == OptionRow.HITBOXES and delta != 0:
             options.toggle_hitboxes()
             apply_options()
@@ -248,29 +265,37 @@ def _run() -> None:
         """True si hay que salir del juego."""
         nonlocal state, account_index, shop_index, shop_note, option_index
         if hit.action == Action.QUIT:
+            audio.click()
             return True
         if hit.action == Action.SKIP:
+            audio.click()
             state = State.MENU
             return False
         if hit.action == Action.PLAY:
+            audio.click()
             if accounts.active() is None:
                 open_accounts()
             else:
                 begin_run()
             return False
         if hit.action == Action.ACCOUNTS:
+            audio.click()
             open_accounts()
             return False
         if hit.action == Action.UPGRADES:
+            audio.click()
             open_upgrades()
             return False
         if hit.action == Action.OPTIONS:
+            audio.click()
             open_options()
             return False
         if hit.action == Action.CREDITS:
+            audio.click()
             state = State.CREDITS
             return False
         if hit.action == Action.BACK:
+            audio.click()
             if state == State.NAMING:
                 state = State.ACCOUNTS
             elif state == State.CREDITS:
@@ -281,9 +306,11 @@ def _run() -> None:
                 state = State.MENU
             return False
         if hit.action == Action.NEW:
+            audio.click()
             open_naming()
             return False
         if hit.action == Action.SELECT:
+            audio.click()
             if state == State.ACCOUNTS:
                 account_index = hit.index
             elif state == State.UPGRADES:
@@ -293,12 +320,14 @@ def _run() -> None:
                 option_index = hit.index
             return False
         if hit.action == Action.CONFIRM:
+            audio.click()
             if state == State.ACCOUNTS:
                 select_account()
             elif state == State.NAMING:
                 confirm_name()
             return False
         if hit.action == Action.BUY:
+            audio.click()
             buy_upgrade()
             return False
         if hit.action == Action.RETRY:
@@ -306,14 +335,18 @@ def _run() -> None:
                 begin_run()
             return False
         if hit.action == Action.TOGGLE:
+            audio.click()
             option_index = hit.index
-            if hit.index == OptionRow.HITBOXES:
+            if hit.index == OptionRow.FULLSCREEN:
+                toggle_fullscreen()
+            elif hit.index == OptionRow.HITBOXES:
                 options.toggle_hitboxes()
                 apply_options()
             elif hit.index == OptionRow.TELEMETRY:
                 options.toggle_telemetry()
             return False
         if hit.action == Action.NUDGE:
+            audio.click()
             option_index = hit.index
             nudge_option(hit.delta)
             return False
@@ -331,6 +364,8 @@ def _run() -> None:
                 hit = hits.at(event.pos)
                 if hit is not None and handle_hit(hit):
                     running = False
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_F11:
+                toggle_fullscreen()
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_h and state == State.PLAY:
                 options.toggle_hitboxes()
                 apply_options()
@@ -363,6 +398,8 @@ def _run() -> None:
                 elif event.key in ENTER_KEYS:
                     if option_index == OptionRow.CREDITS:
                         state = State.CREDITS
+                    elif option_index == OptionRow.FULLSCREEN:
+                        toggle_fullscreen()
                     elif option_index == OptionRow.HITBOXES:
                         options.toggle_hitboxes()
                         apply_options()
@@ -417,7 +454,7 @@ def _run() -> None:
             state = State.MENU
 
         if state in (State.PLAY, State.OVER):
-            session.step(dt)
+            session.step(dt, audio)
             if state == State.PLAY and world.game_over and world.catch_timer > CAUGHT_AT:
                 bank_biscuits()
                 record_score()

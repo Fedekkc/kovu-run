@@ -65,6 +65,10 @@ class _PlayerView(Protocol):
     rocket_time: float
 
 
+class _AudioView(Protocol):
+    def event(self, event: Event) -> None: ...
+
+
 @dataclass
 class Particle:
     x: float
@@ -114,8 +118,16 @@ class Effects:
         self._stall = max(0.0, self._stall - dt)
         return 0.0
 
-    def update(self, dt: float, world: _WorldView, player: _PlayerView) -> None:
+    def update(
+        self,
+        dt: float,
+        world: _WorldView,
+        player: _PlayerView,
+        audio: _AudioView | None = None,
+    ) -> None:
         for event in world.feed.drain() + player.feed.drain():
+            if audio is not None:
+                audio.event(event)
             self._react(event, player)
         for particle in self.particles:
             particle.age += dt

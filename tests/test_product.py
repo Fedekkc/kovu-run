@@ -30,6 +30,7 @@ class OptionsTest(unittest.TestCase):
     def test_defaults_hide_hitboxes(self) -> None:
         self.assertFalse(self.store.value.show_hitboxes)
         self.assertFalse(self.store.value.telemetry)
+        self.assertTrue(self.store.value.fullscreen)
         self.assertEqual(self.store.value.volume, 7)
 
     def test_volume_and_toggles_persist(self) -> None:
@@ -37,10 +38,12 @@ class OptionsTest(unittest.TestCase):
         self.assertEqual(self.store.value.volume, VOLUME_MAX)
         self.store.toggle_hitboxes()
         self.store.toggle_telemetry()
+        self.store.toggle_fullscreen()
         again = OptionsStore(self.path)
         self.assertEqual(again.value.volume, VOLUME_MAX)
         self.assertTrue(again.value.show_hitboxes)
         self.assertTrue(again.value.telemetry)
+        self.assertFalse(again.value.fullscreen)
 
     def test_corrupt_options_fall_back(self) -> None:
         self.path.write_text("{roto", encoding="utf-8")

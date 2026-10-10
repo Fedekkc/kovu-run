@@ -28,6 +28,7 @@ class Player:
     lane: int
     lane_pos: float
     height: float
+    floor: float
     jumping: bool
     sliding: bool
     alive: bool
@@ -41,6 +42,7 @@ class Player:
         self._slide_t = 0.0
         self._jump_limit = self.mods.jump_time
         self._jump_scale = self.mods.jump_scale
+        self._jump_floor = 0.0
         self.reset()
 
     def equip(self, mods: RunMods) -> None:
@@ -50,6 +52,7 @@ class Player:
         self.lane = _LANE_START
         self.lane_pos = float(_LANE_START)
         self.height = 0.0
+        self.floor = 0.0
         self.jumping = False
         self.sliding = False
         self.alive = True
@@ -60,6 +63,7 @@ class Player:
         self._slide_t = 0.0
         self._jump_limit = self.mods.jump_time
         self._jump_scale = self.mods.jump_scale
+        self._jump_floor = 0.0
         self._powered_jump = False
         self.rocket_time = 0.0
         self.super_time = 0.0
@@ -145,7 +149,8 @@ class Player:
         if key in (pygame.K_DOWN, pygame.K_s):
             self._begin_slide()
 
-    def update(self, dt: float) -> None:
+    def update(self, dt: float, floor: float = 0.0) -> None:
+        self.floor = max(0.0, floor)
         self.run_time += dt
         self._advance_lane(dt)
         self._tick_holds(dt)
@@ -159,10 +164,21 @@ class Player:
             self._slide_t = 0.0
             self._powered_jump = False
             self.flipping = False
-            self.height = ROCKET_FLOOR if self.rocket_time > 0.0 else 0.0
+            if self.rocket_time > 0.0:
+                self.height = ROCKET_FLOOR
+            else:
+                self.height = self.floor
             return
         self._advance_jump(dt)
         self._advance_slide(dt)
+        self.settle(self.floor)
+
+    def settle(self, floor: float) -> None:
+        """Pega los pies al techo del vagón o al piso al salir del salto/cohete."""
+        self.floor = max(0.0, floor)
+        if self.rocket_time > 0.0 or self.jumping:
+            return
+        self.height = self.floor
 
     def _tick_holds(self, dt: float) -> None:
         """La ventana corre siempre; al vencerse se pierde el poder, no al usarlo."""
@@ -207,7 +223,7 @@ class Player:
             self.extra_jumps -= 1
             self._jump_scale = max(self._jump_scale, self.mods.double_jump_scale)
             self._jump_limit = max(self._jump_limit, self.mods.double_jump_time)
-            ratio = min(1.0, self.height / max(0.01, self._jump_scale))
+            ratio = min(1.0, max(0.0, (self.height - self._jump_floor) / max(0.01, self._jump_scale)))
             self._jump_t = math.asin(ratio) * self._jump_limit / math.pi
             self.flipping = True
             self.flip_time = 0.0
@@ -221,32 +237,45 @@ class Player:
             self.extra_jumps = 1
         self.jumping = True
         self._jump_t = 0.0
-        self.height = 0.0
+        self._jump_floor = self.floor
+        self.height = self.floor
         self._emit(Kind.JUMP)
 
     def _advance_jump(self, dt: float) -> None:
         if not self.jumping:
             return
+        previous = self.height
         self._jump_t += dt
         self.flip_time += dt
+        rising = self._jump_t < self._jump_limit * 0.5
         if self._jump_t >= self._jump_limit:
-            self.jumping = False
-            self.height = 0.0
-            self._powered_jump = False
-            self.flipping = False
-            self._emit(Kind.LAND)
-            self._jump_limit = self.mods.jump_time
-            self._jump_scale = self.mods.jump_scale
-            if self.double_time > 0.0:
-                self.extra_jumps = 1
+            self._land(self.floor)
             return
-        self.height = math.sin(math.pi * self._jump_t / self._jump_limit) * self._jump_scale
+        self.height = self._jump_floor + math.sin(math.pi * self._jump_t / self._jump_limit) * self._jump_scale
+        if rising:
+            return
+        if self.floor > self._jump_floor + 0.05 and previous >= self.floor >= self.height:
+            self._land(self.floor)
+
+    def _land(self, floor: float) -> None:
+        self.jumping = False
+        self.height = floor
+        self.floor = floor
+        self._powered_jump = False
+        self.flipping = False
+        self._emit(Kind.LAND)
+        self._jump_limit = self.mods.jump_time
+        self._jump_scale = self.mods.jump_scale
+        self._jump_floor = floor
+        if self.double_time > 0.0:
+            self.extra_jumps = 1
 
     def _begin_slide(self) -> None:
         if self.rocket_time > 0.0 or self.sliding or self.jumping:
             return
         self.sliding = True
         self._slide_t = 0.0
+        self._emit(Kind.SLIDE)
 
     def _advance_slide(self, dt: float) -> None:
         if not self.sliding:

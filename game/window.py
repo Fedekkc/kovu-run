@@ -1,14 +1,22 @@
-"""Caption e ícono de la ventana."""
+"""Caption, ícono y modo de pantalla."""
 
 from __future__ import annotations
 
 import pygame
 
 from game.paths import asset
-from game.settings import TITLE
+from game.settings import HEIGHT, TITLE, WIDTH
 
 ICON_SIZE = 64
 SIDE_FRAME_W = 66
+
+
+def open_display(fullscreen: bool) -> pygame.Surface:
+    """1280x720 lógico; SCALED llena el monitor sin deformar el pixel art."""
+    flags = pygame.SCALED
+    if fullscreen:
+        flags |= pygame.FULLSCREEN
+    return pygame.display.set_mode((WIDTH, HEIGHT), flags)
 
 
 def decorate() -> None:

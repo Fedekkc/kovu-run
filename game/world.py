@@ -7,7 +7,17 @@ from typing import Protocol
 
 from game.events import Event, Feed, Kind
 from game.factory import TrackFactory
-from game.hitbox import Box, obstacle_box, overlaps_swept, pickup_box
+from game.hitbox import (
+    PLAYER_HALF_LANE,
+    PLAYER_HALF_Z,
+    PLAYER_Z,
+    WAGON_HALF_Z,
+    Box,
+    obstacle_box,
+    on_deck,
+    overlaps_swept,
+    pickup_box,
+)
 from game.items import Biscuit, Bonus, Obstacle
 from game.settings import (
     ACCEL_PER_METER,
@@ -23,6 +33,7 @@ from game.settings import (
     ROCKET,
     SPAWN_Z,
     SUPER_JUMP,
+    WAGON,
 )
 
 LANES = (0, 1, 2)
@@ -40,11 +51,17 @@ WEIGHT_SINGLE = 4
 WEIGHT_PAIR = 3
 WEIGHT_LINE = 2
 WEIGHT_JUMP = 2
+WEIGHT_WAGON = 2
 WEIGHT_BONUS = 2
 BONUS_KINDS = (ROCKET, SUPER_JUMP, DOUBLE_JUMP)
 FULL_SHARE_START = 0.16
 FULL_SHARE_END = 0.30
 FULL_RAMP_METERS = 5000.0
+WAGON_CARS = 4
+WAGON_STEP = WAGON_HALF_Z * 2.0
+WAGON_SPAN = WAGON_CARS * WAGON_STEP + 4.0
+WAGON_BISCUITS = 6
+WAGON_BISCUIT_STEP = WAGON_STEP * 0.7
 
 
 class _Player(Protocol):
@@ -133,15 +150,30 @@ class World:
     def _gap(self) -> float:
         return max(MIN_GAP, BASE_GAP - self.distance * GAP_SHRINK_PER_METER)
 
+    def support_at(self, lane: float) -> float:
+        """Altura del techo bajo Kovu, o 0 si corre por el piso."""
+        top = 0.0
+        for obstacle in self.obstacles:
+            if obstacle.kind != WAGON:
+                continue
+            box = obstacle_box(obstacle.kind, obstacle.lane, obstacle.z, self.distance)
+            if abs(lane - box.lane) >= PLAYER_HALF_LANE + box.half_lane:
+                continue
+            if abs(PLAYER_Z - box.z) >= PLAYER_HALF_Z + box.half_z:
+                continue
+            top = max(top, box.top)
+        return top
+
     def _place(self, z: float, player: _Player | None) -> float:
         luck = 0 if player is None else max(0, player.spawn_luck)
         place = self.rng.choices(
-            (self._single, self._pair, self._line, self._jump, self._bonus),
+            (self._single, self._pair, self._line, self._jump, self._wagon, self._bonus),
             weights=(
                 WEIGHT_SINGLE,
                 WEIGHT_PAIR,
                 WEIGHT_LINE + luck,
                 WEIGHT_JUMP + luck,
+                WEIGHT_WAGON + luck,
                 WEIGHT_BONUS,
             ),
             k=1,
@@ -169,6 +201,14 @@ class World:
         for step in range(JUMP_COUNT):
             self._put(BISCUIT, lane, z + step * JUMP_STEP)
         return JUMP_SPAN
+
+    def _wagon(self, z: float) -> float:
+        lane = self._lane()
+        for car in range(WAGON_CARS):
+            self._put(WAGON, lane, z + car * WAGON_STEP)
+        for step in range(WAGON_BISCUITS):
+            self._put(BISCUIT, lane, z + 1.2 + step * WAGON_BISCUIT_STEP)
+        return WAGON_SPAN
 
     def _bonus(self, z: float) -> float:
         self._put(self.rng.choice(BONUS_KINDS), self._lane(), z)
@@ -217,6 +257,8 @@ class World:
         for obstacle in self.obstacles:
             box = obstacle_box(obstacle.kind, obstacle.lane, obstacle.z, self.distance)
             if not overlaps_swept(body, box, obstacle.z + dz):
+                continue
+            if obstacle.kind == WAGON and on_deck(body, box):
                 continue
             self.game_over = True
             self.catch_timer = 0.0

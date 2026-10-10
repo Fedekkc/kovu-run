@@ -33,6 +33,7 @@
     {"id": "facade_shop", "file": "facade_shop.png", "frames": 1, "fps": 0.0, "lift": 0, "scale": 4, "loop": true},
     {"id": "facade_ph", "file": "facade_ph.png", "frames": 1, "fps": 0.0, "lift": 0, "scale": 4, "loop": true},
     {"id": "lamp", "file": "lamp.png", "frames": 1, "fps": 0.0, "lift": 0, "scale": 4, "loop": true},
-    {"id": "sky_night", "file": "sky_night.png", "frames": 1, "fps": 0.0, "lift": 0, "scale": 4, "loop": true}
+    {"id": "sky_night", "file": "sky_night.png", "frames": 1, "fps": 0.0, "lift": 0, "scale": 4, "loop": true},
+    {"id": "wagon", "file": "wagon.png", "frames": 1, "fps": 0.0, "lift": 0, "scale": 4, "loop": true}
   ]
 }

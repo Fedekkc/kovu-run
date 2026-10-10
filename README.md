@@ -1,6 +1,6 @@
 # Kovu Run
 
-Endless runner 2.5D: Kovu el galgo corre y una chica con buzo rojo lo persigue. Galletas, poderes y mejoras locales.
+Endless runner 2.5D: Kovu el galgo corre y una viejita con cardigan malva lo persigue. Saltá a los vagones para correr un tramo elevado, juntá galletas y mejoras locales.
 
 ## Requisitos
 
@@ -31,10 +31,19 @@ Los saves van en `data/` al lado del ejecutable (`accounts.json`, ranking, opcio
 | Teclado | Acción |
 |--------|--------|
 | ← → / A D | Carril |
-| ↑ W / Espacio | Saltar |
+| ↑ W / Espacio | Saltar (también para subir a un vagón) |
 | ↓ S | Agacharse |
 | Clic | Menú, tienda, cuentas, opciones |
+| F11 | Pantalla completa |
 | Esc | Volver / salir |
+
+Arranca en **pantalla completa** (se puede apagar en Opciones). Hay **música en loop** y SFX (salto, galleta, crash, menú, etc.); el volumen se ajusta en Opciones.
+
+Los WAV se regeneran con:
+
+```bash
+py -m tools.forge
+```
 
 ## Licencia
 

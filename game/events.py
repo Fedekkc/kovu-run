@@ -12,6 +12,7 @@ class Kind(StrEnum):
     CRASH = "crash"
     JUMP = "jump"
     LAND = "land"
+    SLIDE = "slide"
 
 
 @dataclass(frozen=True)

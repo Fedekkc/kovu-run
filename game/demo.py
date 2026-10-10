@@ -7,7 +7,7 @@ import pygame
 from game.hitbox import PLAYER_Z
 from game.player import Player
 from game.session import Session
-from game.settings import FULL, HIGH, LOW
+from game.settings import FULL, HIGH, LOW, WAGON
 from game.world import LANES, World
 
 JUMP_LEAD = 0.2
@@ -38,7 +38,7 @@ class Autopilot:
         kind, gap = ahead
         if kind == FULL and gap <= pace * DODGE_LEAD + DODGE_PAD:
             self._dodge(world, player)
-        elif kind == LOW and gap <= pace * JUMP_LEAD + JUMP_PAD:
+        elif kind in (LOW, WAGON) and player.floor <= 0.0 and gap <= pace * JUMP_LEAD + JUMP_PAD:
             self._press(player, _JUMP)
         elif kind == HIGH and gap <= pace * SLIDE_LEAD + SLIDE_PAD:
             self._press(player, _SLIDE)

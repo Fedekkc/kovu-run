@@ -38,6 +38,7 @@ BANK_RATE = 0.0
 LOW = "low"    # se salta
 HIGH = "high"  # se esquiva agachándose
 FULL = "full"  # hay que cambiar de carril
+WAGON = "wagon"  # se trepa y se corre un tramo elevado
 
 # Recogibles
 BISCUIT = "biscuit"

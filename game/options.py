@@ -1,9 +1,9 @@
-"""Preferencias locales: volumen, hitboxes, telemetría. Idioma queda listo para después."""
+"""Preferencias locales: volumen, pantalla, hitboxes, telemetría."""
 
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from game.paths import data_dir
@@ -15,9 +15,10 @@ LANG_ES = "es"
 COPY_LANG_ES = "Español"
 
 
-@dataclass
+@dataclass(frozen=True)
 class Options:
     volume: int = VOLUME_DEFAULT
+    fullscreen: bool = True
     show_hitboxes: bool = False
     telemetry: bool = False
     language: str = LANG_ES
@@ -25,7 +26,7 @@ class Options:
     def clamp(self) -> Options:
         volume = max(0, min(VOLUME_MAX, int(self.volume)))
         language = LANG_ES if self.language == LANG_ES else LANG_ES
-        return Options(volume, bool(self.show_hitboxes), bool(self.telemetry), language)
+        return Options(volume, bool(self.fullscreen), bool(self.show_hitboxes), bool(self.telemetry), language)
 
 
 def default_options_path() -> Path:
@@ -54,6 +55,7 @@ class OptionsStore:
             language = LANG_ES
         return Options(
             volume,
+            bool(raw.get("fullscreen", True)),
             bool(raw.get("show_hitboxes", False)),
             bool(raw.get("telemetry", False)),
             language,
@@ -64,6 +66,7 @@ class OptionsStore:
         self._path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
             "volume": self.value.volume,
+            "fullscreen": self.value.fullscreen,
             "show_hitboxes": self.value.show_hitboxes,
             "telemetry": self.value.telemetry,
             "language": self.value.language,
@@ -72,29 +75,18 @@ class OptionsStore:
         temporary.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
         temporary.replace(self._path)
 
-    def set_volume(self, volume: int) -> None:
-        self.value = Options(
-            volume,
-            self.value.show_hitboxes,
-            self.value.telemetry,
-            self.value.language,
-        ).clamp()
+    def _set(self, **changes: object) -> None:
+        self.value = replace(self.value, **changes).clamp()
         self.save()
+
+    def set_volume(self, volume: int) -> None:
+        self._set(volume=volume)
+
+    def toggle_fullscreen(self) -> None:
+        self._set(fullscreen=not self.value.fullscreen)
 
     def toggle_hitboxes(self) -> None:
-        self.value = Options(
-            self.value.volume,
-            not self.value.show_hitboxes,
-            self.value.telemetry,
-            self.value.language,
-        ).clamp()
-        self.save()
+        self._set(show_hitboxes=not self.value.show_hitboxes)
 
     def toggle_telemetry(self) -> None:
-        self.value = Options(
-            self.value.volume,
-            self.value.show_hitboxes,
-            not self.value.telemetry,
-            self.value.language,
-        ).clamp()
-        self.save()
+        self._set(telemetry=not self.value.telemetry)

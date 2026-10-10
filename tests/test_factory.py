@@ -21,6 +21,7 @@ from game.settings import (
     SUPER_HOLD,
     SUPER_JUMP,
     SUPER_JUMP_TIME,
+    WAGON,
 )
 from game.world import World
 
@@ -33,6 +34,9 @@ class FactoryTest(unittest.TestCase):
         self.assertIsInstance(self.factory.create(LOW, 0, 12), Obstacle)
         self.assertIsInstance(self.factory.create(HIGH, 1, 12), Obstacle)
         self.assertIsInstance(self.factory.create(FULL, 2, 12), Obstacle)
+        wagon = self.factory.create(WAGON, 1, 12)
+        self.assertIsInstance(wagon, Obstacle)
+        self.assertTrue(wagon.climbable)
         self.assertIsInstance(self.factory.create(BISCUIT, 1, 8), Biscuit)
         rocket = self.factory.create(ROCKET, 1, 8)
         spring = self.factory.create(SUPER_JUMP, 0, 8)

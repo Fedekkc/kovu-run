@@ -1,4 +1,4 @@
-"""2.5D pygame view of the park road, Kovu, and the girl chasing him."""
+"""2.5D pygame view of the park road, Kovu, and the abuela chasing him."""
 
 from __future__ import annotations
 
@@ -16,6 +16,9 @@ from game.hitbox import (
     HIGH_PX,
     FULL_PX,
     LOW_PX,
+    WAGON_HALF_Z,
+    WAGON_PX,
+    WAGON_W,
     obstacle_box,
     overlaps,
     pickup_box,
@@ -34,6 +37,7 @@ from game.settings import (
     HORIZON_Y,
     LANE_SPREAD,
     LOW,
+    WAGON,
     NEAR,
     ART_PIXEL,
     PIXEL,
@@ -59,6 +63,7 @@ from game.sprites import (
     BANNER,
     BIN,
     CRATE,
+    WAGON as WAGON_SLOT,
     GIRL_GRAB,
     GIRL_RUN,
     HEDGE,
@@ -123,20 +128,21 @@ _BISCUIT_LIGHT = (248, 214, 150)
 _BISCUIT_HOLE = (156, 104, 36)
 
 _SKIN = (236, 190, 158)
-_HAIR = (118, 48, 32)
-_HAIR_DARK = (78, 30, 22)
-_HAIR_LIGHT = (162, 82, 50)
-_HOODIE = (196, 44, 50)
-_HOODIE_DARK = (146, 28, 36)
-_HOODIE_LIGHT = (224, 86, 80)
-_JEANS = (38, 46, 72)
-_SHOE = (244, 244, 240)
-_SOLE = (42, 42, 46)
-_BROW = (72, 36, 28)
+_HAIR = (236, 228, 214)
+_HAIR_DARK = (168, 152, 142)
+_HAIR_LIGHT = (255, 248, 236)
+_CARDIGAN = (138, 74, 120)
+_CARDIGAN_DARK = (92, 48, 96)
+_CARDIGAN_LIGHT = (200, 96, 122)
+_SKIRT = (92, 50, 104)
+_SHOE = (62, 52, 80)
+_SOLE = (30, 26, 40)
+_BROW = (120, 96, 88)
 _IRIS = (78, 48, 32)
-_FRECKLE = (186, 120, 82)
 _MOUTH = (168, 84, 78)
-_ZIP = (232, 232, 236)
+_SCARF = (232, 132, 102)
+_GLASS = (46, 40, 64)
+_BUTTON = (255, 245, 220)
 
 _SHADOW = (16, 24, 14, 72)
 
@@ -221,6 +227,17 @@ _LOW_H = LOW_PX
 _HIGH_H = HIGH_PX
 _HIGH_GAP = HIGH_GAP_PX
 _FULL_H = FULL_PX
+_WAGON_H = WAGON_PX
+_WAGON_ROOF = (176, 180, 186)
+_WAGON_ROOF_FAR = (142, 146, 154)
+_WAGON_SIDE = (92, 96, 108)
+_WAGON_FACE = (224, 176, 72)
+_WAGON_FACE_DARK = (176, 128, 48)
+_WAGON_WINDOW = (42, 78, 128)
+_WAGON_GLASS = (120, 190, 220)
+_WAGON_LIGHT = (255, 148, 48)
+_WAGON_BUMPER = (54, 58, 68)
+_WAGON_SEAM = (110, 114, 122)
 _BISCUIT_W = 36.0
 _COVER_AT = 0.45
 _REACH_AT = 0.9
@@ -230,8 +247,6 @@ _GRAB_FROM = 0.4
 _SPIN_SPREAD = 0.05
 _SUN_X = 188
 _SUN_Y = HORIZON_Y - 20
-
-_FRECKLES = ((-15, 6), (-8, 10), (-17, 12), (8, 6), (14, 10), (11, 14))
 
 
 class _ObstacleView(Protocol):
@@ -340,6 +355,8 @@ def _obstacle_slot(kind: str, variant: int) -> str:
         return HYDRANT if variant == _AS_HYDRANT else HEDGE
     if kind == HIGH:
         return BANNER
+    if kind == WAGON:
+        return WAGON_SLOT
     if variant == _CRATE_KIND:
         return CRATE
     return BIN
@@ -377,6 +394,9 @@ class Renderer:
         self._lamps: list[tuple[float, float, float]] = []
         self.show_hitboxes = False
         self.pixelate = True
+
+    def attach(self, screen: pygame.Surface) -> None:
+        self._screen = screen
 
     def _blit_slot(
         self,
@@ -719,7 +739,16 @@ class Renderer:
         for obstacle in world.obstacles:
             if _in_view(obstacle.z):
                 paints.append(
-                    (obstacle.z, partial(self._draw_obstacle, obstacle, time, world.distance))
+                    (
+                        obstacle.z,
+                        partial(
+                            self._draw_obstacle,
+                            obstacle,
+                            time,
+                            world.distance,
+                            world.obstacles,
+                        ),
+                    )
                 )
         for biscuit in world.biscuits:
             if not biscuit.taken and _in_view(biscuit.z):
@@ -960,14 +989,14 @@ class Renderer:
         )
 
     def _girl_back(self, pose: _Pose) -> None:
-        swing = pose.stride * 14.0 * (1.0 - pose.ease)
-        crown = self._at(pose, 0.0, -26.0)
-        mid = self._at(pose, -34.0 + swing, -2.0)
-        tip = self._at(pose, -16.0 + swing * 0.45, 26.0)
-        self._limb((crown, mid, tip), (7.0 * pose.g, 4.6 * pose.g), _HAIR)
-        self._fill_oval(tip[0], tip[1], 16.0 * pose.g, 22.0 * pose.g, _HAIR_DARK)
-        hood = self._at(pose, 0.0, 18.0)
-        self._oval(hood[0], hood[1], 62.0 * pose.g, 34.0 * pose.g, _HOODIE_DARK)
+        sway = pose.stride * 6.0 * (1.0 - pose.ease)
+        bun = self._at(pose, sway, -34.0)
+        self._oval(bun[0], bun[1], 28.0 * pose.g, 24.0 * pose.g, _HAIR)
+        self._fill_oval(bun[0] - 4.0 * pose.g, bun[1] - 4.0 * pose.g, 12.0 * pose.g, 8.0 * pose.g, _HAIR_LIGHT)
+        pin = self._at(pose, sway, -28.0)
+        self._fill_disc(pin[0], pin[1], 3.2 * pose.g, _CARDIGAN_LIGHT)
+        cape = self._at(pose, 0.0, 22.0)
+        self._oval(cape[0], cape[1], 58.0 * pose.g, 30.0 * pose.g, _CARDIGAN_DARK)
 
     def _girl_legs(self, pose: _Pose) -> None:
         lift_l = max(0.0, pose.stride) * 24.0 * (1.0 - pose.ease * 0.85)
@@ -979,31 +1008,40 @@ class Renderer:
         hip = self._at(pose, side * 12.0, 58.0)
         knee = self._at(pose, side * 15.0, 74.0 - lift * 0.35)
         shoe = self._at(pose, side * 10.0, 84.0 - lift * 0.55)
-        self._limb((hip, knee, shoe), (8.0 * pose.g, 6.4 * pose.g), _JEANS)
-        self._oval(shoe[0], shoe[1], 26.0 * pose.g, 15.0 * pose.g, _SHOE)
-        self._fill_oval(shoe[0], shoe[1] + 4.0 * pose.g, 26.0 * pose.g, 8.0 * pose.g, _SOLE)
-        self._fill_oval(shoe[0] - side * 7.0 * pose.g, shoe[1] - 2.0 * pose.g, 8.0 * pose.g, 7.0 * pose.g, _HOODIE)
+        self._limb((hip, knee, shoe), (7.2 * pose.g, 5.8 * pose.g), _HAIR_DARK)
+        self._oval(shoe[0], shoe[1], 24.0 * pose.g, 14.0 * pose.g, _SHOE)
+        self._fill_oval(shoe[0], shoe[1] + 4.0 * pose.g, 24.0 * pose.g, 7.0 * pose.g, _SOLE)
 
     def _girl_torso(self, pose: _Pose) -> None:
         shoulder_y = 32.0 - pose.ease * 8.0
-        hip_y = 64.0 + pose.ease * 24.0
+        hip_y = 58.0 + pose.ease * 18.0
+        hem_y = 70.0 + pose.ease * 20.0
         torso = (
             self._at(pose, -24.0, shoulder_y),
             self._at(pose, 24.0, shoulder_y),
             self._at(pose, 18.0, hip_y),
             self._at(pose, -18.0, hip_y),
         )
-        self._poly(torso, _HOODIE)
-        chest = self._at(pose, -6.0, 48.0)
-        self._fill_oval(chest[0], chest[1], 18.0 * pose.g, 16.0 * pose.g, _HOODIE_LIGHT)
+        self._poly(torso, _CARDIGAN)
+        skirt = (
+            self._at(pose, -22.0, hip_y - 4.0),
+            self._at(pose, 22.0, hip_y - 4.0),
+            self._at(pose, 28.0, hem_y),
+            self._at(pose, -28.0, hem_y),
+        )
+        self._poly(skirt, _SKIRT)
+        for dx, dy in ((-10.0, 8.0), (6.0, 12.0), (-2.0, 16.0), (14.0, 6.0)):
+            bloom = self._at(pose, dx, hip_y + dy)
+            self._fill_disc(bloom[0], bloom[1], 2.4 * pose.g, _CARDIGAN_LIGHT)
+        chest = self._at(pose, -4.0, 46.0)
+        self._fill_oval(chest[0], chest[1], 16.0 * pose.g, 14.0 * pose.g, _CARDIGAN_LIGHT)
         neck = self._at(pose, 0.0, 24.0)
         self._limb((self._at(pose, 0.0, 16.0), neck), (7.0 * pose.g,), _SKIN)
-        self._line(self._at(pose, 0.0, 32.0), self._at(pose, 0.0, 66.0), _ZIP, _OUTLINE)
-        pull = self._at(pose, 0.0, 50.0)
-        self._fill_disc(pull[0], pull[1], 3.0 * pose.g, _ZIP)
-        knot = self._at(pose, 0.0, 30.0)
-        self._line(knot, self._at(pose, -6.0, 40.0), _SHOE, _OUTLINE)
-        self._line(knot, self._at(pose, 6.0, 42.0), _SHOE, _OUTLINE)
+        scarf = self._at(pose, 0.0, 28.0)
+        self._oval(scarf[0], scarf[1], 34.0 * pose.g, 12.0 * pose.g, _SCARF)
+        for dx, dy in ((-6.0, 42.0), (4.0, 50.0)):
+            button = self._at(pose, dx, dy)
+            self._fill_disc(button[0], button[1], 2.6 * pose.g, _BUTTON)
 
     def _girl_head(self, pose: _Pose) -> None:
         center = self._at(pose, 0.0, 0.0)
@@ -1013,6 +1051,8 @@ class Renderer:
         ear_r = self._at(pose, 24.0, 4.0)
         self._fill_oval(ear_l[0], ear_l[1], 10.0 * pose.g, 14.0 * pose.g, _SKIN)
         self._fill_oval(ear_r[0], ear_r[1], 10.0 * pose.g, 14.0 * pose.g, _SKIN)
+        self._line(self._at(pose, -28.0, 2.0), self._at(pose, -34.0, 6.0), _GLASS, _OUTLINE)
+        self._line(self._at(pose, 28.0, 2.0), self._at(pose, 34.0, 6.0), _GLASS, _OUTLINE)
         crown = self._at(pose, 0.0, -12.0)
         self._oval(crown[0], crown[1], 62.0 * pose.g, 40.0 * pose.g, _HAIR)
         side_l = self._at(pose, -24.0, 2.0)
@@ -1021,17 +1061,29 @@ class Renderer:
         self._oval(side_r[0], side_r[1], 18.0 * pose.g, 36.0 * pose.g, _HAIR)
         shine = self._at(pose, -8.0, -20.0)
         self._fill_oval(shine[0], shine[1], 16.0 * pose.g, 10.0 * pose.g, _HAIR_LIGHT)
-        band = self._at(pose, -2.0, -24.0)
-        self._disc(band[0], band[1], 4.2 * pose.g, _HOODIE)
+        bun = self._at(pose, 0.0, -30.0)
+        self._oval(bun[0], bun[1], 26.0 * pose.g, 22.0 * pose.g, _HAIR)
+        self._fill_disc(bun[0], bun[1] + 4.0 * pose.g, 3.0 * pose.g, _CARDIGAN_LIGHT)
         self._girl_face(pose)
 
     def _girl_face(self, pose: _Pose) -> None:
         glance = -3.0 * pose.ease
         self._eye(pose, -11.0, 6.0 + glance, glance)
         self._eye(pose, 11.0, 6.0 + glance, glance)
-        brow_w = max(_OUTLINE, int(3.0 * pose.g))
-        self._line(self._at(pose, -20.0, -2.0), self._at(pose, -4.0, 2.0), _BROW, brow_w)
-        self._line(self._at(pose, 4.0, 2.0), self._at(pose, 20.0, -2.0), _BROW, brow_w)
+        rim = max(1, int(2.4 * pose.g))
+        for dx in (-11.0, 11.0):
+            center = self._at(pose, dx, 6.0 + glance)
+            rect = pygame.Rect(
+                int(center[0] - 7.0 * pose.g),
+                int(center[1] - 6.0 * pose.g),
+                max(2, int(14.0 * pose.g)),
+                max(2, int(12.0 * pose.g)),
+            )
+            pygame.draw.ellipse(self._screen, _GLASS, rect, rim)
+        self._line(self._at(pose, -4.0, 6.0 + glance), self._at(pose, 4.0, 6.0 + glance), _GLASS, rim)
+        brow_w = max(_OUTLINE, int(2.5 * pose.g))
+        self._line(self._at(pose, -18.0, 0.0), self._at(pose, -4.0, 2.0), _BROW, brow_w)
+        self._line(self._at(pose, 4.0, 2.0), self._at(pose, 18.0, 0.0), _BROW, brow_w)
         nose = self._at(pose, 0.0, 12.0)
         self._line(nose, (nose[0], nose[1] + 5.0 * pose.g), _dark(_SKIN, 40), _OUTLINE)
         mouth = self._at(pose, 0.0, 18.0)
@@ -1044,9 +1096,6 @@ class Renderer:
                 _dark(_SKIN, 50),
                 _OUTLINE,
             )
-        for dx, dy in _FRECKLES:
-            spot = self._at(pose, dx, dy)
-            self._fill_disc(spot[0], spot[1], max(1.0, 1.7 * pose.g), _FRECKLE)
 
     def _eye(self, pose: _Pose, dx: float, dy: float, glance: float) -> None:
         center = self._at(pose, dx, dy)
@@ -1091,7 +1140,7 @@ class Renderer:
             (shoulder[0] + hand[0]) * 0.5 + bend * pose.g,
             (shoulder[1] + hand[1]) * 0.5 + 6.0 * pose.g * (1.0 - pose.ease),
         )
-        self._limb((shoulder, elbow, hand), (7.2 * pose.g, 6.0 * pose.g), _HOODIE)
+        self._limb((shoulder, elbow, hand), (7.2 * pose.g, 6.0 * pose.g), _CARDIGAN)
         self._disc(hand[0], hand[1], 7.0 * pose.g, _SKIN)
 
     def _draw_prop(self, lane: float, z: float, kind: int, variant: int) -> None:
@@ -1159,7 +1208,16 @@ class Renderer:
         self._oval(x + w * 0.2, y - h * 0.3, w * 0.5, h * 0.62, _LEAF)
         self._oval(x, y - h * 0.55, w * 0.48, h * 0.58, _LEAF_LIGHT)
 
-    def _draw_obstacle(self, obstacle: _ObstacleView, time: float, distance: float) -> None:
+    def _draw_obstacle(
+        self,
+        obstacle: _ObstacleView,
+        time: float,
+        distance: float,
+        obstacles: Sequence[_ObstacleView],
+    ) -> None:
+        if obstacle.kind == WAGON:
+            self._draw_wagon(obstacle.lane, obstacle.z, obstacles)
+            return
         variant = _variant(obstacle.lane, obstacle.z, distance)
         x, y, scale = project(obstacle.lane, obstacle.z)
         if self._blit_slot(_obstacle_slot(obstacle.kind, variant), x, y, scale, time):
@@ -1172,6 +1230,133 @@ class Renderer:
             return
         if obstacle.kind == FULL:
             self._draw_full(obstacle.lane, obstacle.z, variant)
+
+    def _draw_wagon(self, lane: float, z: float, obstacles: Sequence[_ObstacleView]) -> None:
+        """Caja 2.5D de frente: techo hacia el horizonte y trompa hacia la cámara."""
+        near_z = max(_MIN_Z, z - WAGON_HALF_Z)
+        far_z = z + WAGON_HALF_Z
+        xn, yn, sn = project(lane, near_z)
+        xf, yf, sf = project(lane, far_z)
+        half_n = WAGON_W * 0.48 * sn
+        half_f = WAGON_W * 0.48 * sf
+        hn = _WAGON_H * sn
+        hf = _WAGON_H * sf
+        rail = 10.0 * sn
+        self._shadow(xn, yn, half_n * 1.05, max(4.0, 9.0 * sn))
+        left = (
+            (xn - half_n, yn - rail),
+            (xn - half_n, yn - hn),
+            (xf - half_f, yf - hf),
+            (xf - half_f, yf - rail * sf / max(sn, 0.01)),
+        )
+        right = (
+            (xn + half_n, yn - rail),
+            (xn + half_n, yn - hn),
+            (xf + half_f, yf - hf),
+            (xf + half_f, yf - rail * sf / max(sn, 0.01)),
+        )
+        self._poly(left, _WAGON_SIDE)
+        self._poly(right, _WAGON_SIDE)
+        roof = (
+            (xn - half_n, yn - hn),
+            (xn + half_n, yn - hn),
+            (xf + half_f, yf - hf),
+            (xf - half_f, yf - hf),
+        )
+        self._poly(roof, _WAGON_ROOF)
+        self._paint(
+            (
+                (xn - half_n * 0.72, yn - hn),
+                (xn + half_n * 0.72, yn - hn),
+                (xf + half_f * 0.72, yf - hf),
+                (xf - half_f * 0.72, yf - hf),
+            ),
+            _WAGON_ROOF_FAR,
+        )
+        seam_y = yf - hf
+        self._line((xf - half_f, seam_y), (xf + half_f, seam_y), _WAGON_SEAM, max(1, int(2 * sf)))
+        if self._wagon_nose(lane, z, obstacles):
+            self._wagon_face(xn, yn, sn, half_n, hn, rail)
+
+    def _wagon_nose(self, lane: float, z: float, obstacles: Sequence[_ObstacleView]) -> bool:
+        """Solo la trompa del vagón más cercano del convoy mira a la cámara."""
+        nose = z - WAGON_HALF_Z
+        for other in obstacles:
+            if other.kind != WAGON or int(other.lane) != int(lane):
+                continue
+            if other.z >= z - 0.01:
+                continue
+            if other.z + WAGON_HALF_Z >= nose - 0.2:
+                return False
+        return True
+
+    def _wagon_face(
+        self,
+        x: float,
+        y: float,
+        scale: float,
+        half: float,
+        height: float,
+        rail: float,
+    ) -> None:
+        top = y - height
+        skirt = y - rail
+        self._poly(
+            (
+                (x - half, skirt),
+                (x + half, skirt),
+                (x + half, top),
+                (x - half, top),
+            ),
+            _WAGON_FACE,
+        )
+        self._paint(
+            (
+                (x - half, top),
+                (x + half, top),
+                (x + half * 0.92, top + height * 0.12),
+                (x - half * 0.92, top + height * 0.12),
+            ),
+            _WAGON_FACE_DARK,
+        )
+        pane_w = half * 0.28
+        pane_h = height * 0.28
+        pane_y = top + height * 0.28
+        for side in (-1.0, 1.0):
+            cx = x + side * half * 0.42
+            self._paint(
+                (
+                    (cx - pane_w, pane_y),
+                    (cx + pane_w, pane_y),
+                    (cx + pane_w, pane_y + pane_h),
+                    (cx - pane_w, pane_y + pane_h),
+                ),
+                _WAGON_WINDOW,
+            )
+            self._paint(
+                (
+                    (cx - pane_w * 0.7, pane_y + 2.0 * scale),
+                    (cx + pane_w * 0.2, pane_y + 2.0 * scale),
+                    (cx + pane_w * 0.2, pane_y + pane_h * 0.45),
+                    (cx - pane_w * 0.7, pane_y + pane_h * 0.45),
+                ),
+                _WAGON_GLASS,
+            )
+        for side in (-1.0, 1.0):
+            lx = x + side * half * 0.72
+            ly = skirt - height * 0.18
+            self._fill_disc(lx, ly, max(2.0, 4.5 * scale), _WAGON_LIGHT)
+            self._fill_disc(lx, ly, max(1.0, 2.0 * scale), (255, 220, 140))
+        bump = skirt - height * 0.08
+        self._paint(
+            (
+                (x - half * 0.9, bump),
+                (x + half * 0.9, bump),
+                (x + half * 0.85, skirt),
+                (x - half * 0.85, skirt),
+            ),
+            _WAGON_BUMPER,
+        )
 
     def _draw_low(self, lane: float, z: float, variant: int) -> None:
         if variant == _AS_HYDRANT:

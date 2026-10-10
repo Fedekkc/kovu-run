@@ -17,6 +17,7 @@ from game.settings import (
     LOW,
     ROCKET,
     SUPER_JUMP,
+    WAGON,
 )
 
 TrackItem = Obstacle | Biscuit | Bonus
@@ -58,6 +59,7 @@ class TrackFactory:
             LOW: ObstacleCreator(LOW),
             HIGH: ObstacleCreator(HIGH),
             FULL: ObstacleCreator(FULL),
+            WAGON: ObstacleCreator(WAGON),
             BISCUIT: BiscuitCreator(),
             ROCKET: BonusCreator(ROCKET),
             SUPER_JUMP: BonusCreator(SUPER_JUMP),

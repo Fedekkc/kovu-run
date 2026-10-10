@@ -47,10 +47,11 @@ from game.sprites import (
     SKYLINE_NEAR,
     SLIDE_ICON,
     TREE,
+    WAGON,
     default_catalog_path,
 )
 from game.pixelfont import default_font_path
-from tools.forge import barrio, font, girl, kovu, kovu_side, pickups, props, scenery
+from tools.forge import barrio, font, girl, kovu, kovu_side, pickups, props, scenery, sound
 from tools.forge.canvas import Canvas, strip
 
 RUN_FPS = 14.0
@@ -125,6 +126,7 @@ def bakes() -> list[Bake]:
         ),
         Bake(BIN, "container.png", [props.container()], 0.0),
         Bake(CRATE, "crates.png", [props.crates()], 0.0),
+        Bake(WAGON, "wagon.png", [props.wagon()], 0.0),
         Bake(
             BISCUIT,
             "biscuit.png",
@@ -259,6 +261,8 @@ def main(argv: Sequence[str]) -> None:
     items = bakes()
     write(items, default_catalog_path())
     write_font(default_font_path())
+    root = Path(__file__).resolve().parent.parent.parent
+    sound.write_catalog(root / "assets" / "audio")
     if len(argv) > 1:
         sheet(items, Path(argv[1]))
 

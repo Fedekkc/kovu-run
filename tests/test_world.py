@@ -6,7 +6,7 @@ import random
 import unittest
 
 from game.hitbox import Box
-from game.settings import BISCUIT_POINTS, FULL, HIGH, LOW, PLAYER_DRAW_Z, SPAWN_Z
+from game.settings import BISCUIT_POINTS, FULL, HIGH, LOW, PLAYER_DRAW_Z, SPAWN_Z, WAGON
 from game.world import Biscuit, World
 
 FRAME = 1.0 / 60.0
@@ -46,7 +46,7 @@ class WorldTest(unittest.TestCase):
         for obstacle in world.obstacles:
             self.assertGreaterEqual(obstacle.z, REACTION_Z)
             self.assertIn(obstacle.lane, (0, 1, 2))
-            self.assertIn(obstacle.kind, (LOW, HIGH, FULL))
+            self.assertIn(obstacle.kind, (LOW, HIGH, FULL, WAGON))
 
     def test_crash_freezes_the_world(self) -> None:
         world = World(random.Random(1))

@@ -208,7 +208,7 @@ class SpriteCatalogTest(unittest.TestCase):
                 z = 3.0
                 kind = LOW
 
-            renderer._draw_obstacle(Piece(), 0.0, 0.0)
+            renderer._draw_obstacle(Piece(), 0.0, 0.0, ())
             x, y, _scale = project(1.0, 3.0)
             color = screen.get_at((int(x), int(y) - 12))
             self.assertGreater(color[0], 240)

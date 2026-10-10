@@ -22,7 +22,7 @@ from game.upgrades import UpgradeLine
 
 COPY_TAGLINE = "Corré, saltá y que no te alcance"
 COPY_LANE = "← → o A D  carril"
-COPY_JUMP = "↑ W o espacio  saltar"
+COPY_JUMP = "↑ W o espacio  saltar / subir"
 COPY_SLIDE = "↓ o S  agacharse"
 COPY_START = "Enter  jugar"
 COPY_CREATE_LINE = "Enter  crear cuenta"
@@ -50,8 +50,9 @@ COPY_BTN_PLUS = "+"
 BTN_H = 48
 BTN_GAP = 12
 COPY_OPTIONS_TITLE = "Opciones"
-COPY_OPTIONS_HINT = "↑ ↓ elegir · ← → cambiar · Enter · Esc volver"
+COPY_OPTIONS_HINT = "↑ ↓ elegir · ← → cambiar · Enter · Esc volver · F11 pantalla"
 COPY_VOLUME = "Volumen"
+COPY_FULLSCREEN = "Pantalla completa"
 COPY_HITBOXES = "Hitboxes"
 COPY_TELEMETRY = "Telemetría"
 COPY_LANGUAGE = "Idioma"
@@ -66,7 +67,7 @@ COPY_STATS_EMPTY = "Hoy: sin partidas"
 COPY_CREDITS_TITLE = "Créditos"
 COPY_CREDITS = (
     "Kovu Run",
-    "Un galgo, una persecución, muchas galletas",
+    "Un galgo, una viejita, muchas galletas",
     "",
     "Hecho con pygame",
     "Pixel art forjado en el barrio",
@@ -714,6 +715,7 @@ def draw_options(
     y = _screen_title(screen, COPY_OPTIONS_TITLE, 48) + 20
     rows = (
         (COPY_VOLUME, _volume_label(options.volume)),
+        (COPY_FULLSCREEN, COPY_ON if options.fullscreen else COPY_OFF),
         (COPY_HITBOXES, COPY_ON if options.show_hitboxes else COPY_OFF),
         (COPY_TELEMETRY, COPY_ON if options.telemetry else COPY_OFF),
         (COPY_LANGUAGE, COPY_LANG_ES),
@@ -742,9 +744,9 @@ def draw_options(
             screen.blit(right, right.get_rect(midright=(row.right - 12, row.centery)))
         if slot == 0:
             pass
-        elif slot == 4:
+        elif slot == 5:
             hits.add(Action.CREDITS, row, slot)
-        elif slot in (1, 2):
+        elif slot in (1, 2, 3):
             hits.add(Action.TOGGLE, row, slot)
         else:
             hits.add(Action.SELECT, row, slot)

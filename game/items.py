@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from game.settings import BISCUIT, FULL, HIGH, LOW
+from game.settings import BISCUIT, FULL, HIGH, LOW, WAGON
 
 
 @dataclass
@@ -15,7 +15,11 @@ class Obstacle:
 
     @property
     def lethal(self) -> bool:
-        return self.kind in (LOW, HIGH, FULL)
+        return self.kind in (LOW, HIGH, FULL, WAGON)
+
+    @property
+    def climbable(self) -> bool:
+        return self.kind == WAGON
 
 
 @dataclass
