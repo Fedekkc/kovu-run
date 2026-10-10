@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+highscore.json
+data/
+*.spec
+build/
+dist/
+*.log
+.DS_Store
