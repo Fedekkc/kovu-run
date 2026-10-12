@@ -2,9 +2,9 @@
   "pivot": "feet",
   "filter": "nearest",
   "sprites": [
-    {"id": "kovu_run", "file": "kovu_run.png", "frames": 8, "fps": 14.0, "lift": 0, "scale": 4, "loop": true},
-    {"id": "kovu_jump", "file": "kovu_jump.png", "frames": 1, "fps": 0.0, "lift": 0, "scale": 4, "loop": true},
-    {"id": "kovu_slide", "file": "kovu_slide.png", "frames": 1, "fps": 0.0, "lift": 0, "scale": 4, "loop": true},
+    {"id": "kovu_run", "file": "kovu_run.png", "frames": 12, "fps": 16.0, "lift": 0, "scale": 4, "loop": true},
+    {"id": "kovu_jump", "file": "kovu_jump.png", "frames": 6, "fps": 6.0, "lift": 0, "scale": 4, "loop": false},
+    {"id": "kovu_slide", "file": "kovu_slide.png", "frames": 4, "fps": 4.0, "lift": 0, "scale": 4, "loop": false},
     {"id": "kovu_rocket", "file": "kovu_rocket.png", "frames": 4, "fps": 16.0, "lift": -6, "scale": 4, "loop": true},
     {"id": "girl_run", "file": "girl_run.png", "frames": 6, "fps": 10.0, "lift": 0, "scale": 4, "loop": true},
     {"id": "girl_grab", "file": "girl_grab.png", "frames": 4, "fps": 4.0, "lift": 0, "scale": 4, "loop": false},

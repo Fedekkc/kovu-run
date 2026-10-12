@@ -12,11 +12,12 @@ from game.crashlog import write_crash
 from game.dao import LocalArcadeDAO
 from game.demo import Demo
 from game.hits import Action, Hit, Hits
+from game.medals import award
 from game.name import NameBuffer
 from game.options import OptionsStore
 from game.render import Renderer
 from game.session import Session
-from game.settings import FPS
+from game.settings import FPS, MODE_LAVA, MODE_NORMAL
 from game.telemetry import Telemetry
 from game.ui import (
     draw_accounts,
@@ -113,16 +114,20 @@ def _run() -> None:
     biscuits_saved = False
     saved_count = 0
     option_index = 0
+    run_mode = MODE_NORMAL
+    new_medals: list[str] = []
     hits = Hits()
 
-    def begin_run() -> None:
-        nonlocal state, rank, biscuits_saved, saved_count
+    def begin_run(mode: str = MODE_NORMAL) -> None:
+        nonlocal state, rank, biscuits_saved, saved_count, run_mode, new_medals
         account = accounts.active()
         if account is None:
             open_accounts()
             return
         player.equip(run_mods(account.levels))
-        session.reset()
+        run_mode = mode
+        new_medals = []
+        session.reset(mode)
         rank = 0
         biscuits_saved = False
         saved_count = 0
@@ -147,8 +152,9 @@ def _run() -> None:
         saved_count = gained
 
     def record_score() -> None:
-        nonlocal rank
+        nonlocal rank, new_medals
         rank = 0
+        new_medals = []
         account = accounts.active()
         if account is None:
             return
@@ -157,6 +163,13 @@ def _run() -> None:
             rank = ranking.insert(account.name, score, world.biscuits_taken)
         except OSError:
             rank = 0
+        fresh = award(account.medals, world.distance)
+        if fresh:
+            new_medals = fresh
+            try:
+                accounts.update(account)
+            except OSError:
+                new_medals = []
         try:
             telemetry.record(score, options.value.telemetry)
         except OSError:
@@ -276,7 +289,14 @@ def _run() -> None:
             if accounts.active() is None:
                 open_accounts()
             else:
-                begin_run()
+                begin_run(MODE_NORMAL)
+            return False
+        if hit.action == Action.LAVA:
+            audio.click()
+            if accounts.active() is None:
+                open_accounts()
+            else:
+                begin_run(MODE_LAVA)
             return False
         if hit.action == Action.ACCOUNTS:
             audio.click()
@@ -332,7 +352,7 @@ def _run() -> None:
             return False
         if hit.action == Action.RETRY:
             if elapsed - over_at > RETRY_AT:
-                begin_run()
+                begin_run(run_mode)
             return False
         if hit.action == Action.TOGGLE:
             audio.click()
@@ -438,15 +458,18 @@ def _run() -> None:
                     if accounts.active() is None:
                         open_accounts()
                     else:
-                        begin_run()
+                        begin_run(MODE_NORMAL)
                 elif state == State.OVER and elapsed - over_at > RETRY_AT:
-                    begin_run()
+                    begin_run(run_mode)
             elif state == State.MENU and event.type == pygame.KEYDOWN and event.key == pygame.K_c:
                 open_accounts()
             elif state == State.MENU and event.type == pygame.KEYDOWN and event.key == pygame.K_u:
                 open_upgrades()
             elif state == State.MENU and event.type == pygame.KEYDOWN and event.key == pygame.K_o:
                 open_options()
+            elif state == State.MENU and event.type == pygame.KEYDOWN and event.key == pygame.K_l:
+                if accounts.active() is not None:
+                    begin_run(MODE_LAVA)
             elif state == State.PLAY and not world.game_over:
                 player.handle_event(event)
 
@@ -468,6 +491,7 @@ def _run() -> None:
             hits = draw_splash(screen, elapsed)
         elif state in (State.PLAY, State.OVER):
             renderer.draw(world, player, elapsed, session.effects)
+            toast = session.story.toast
             draw_hud(
                 screen,
                 world.display_score,
@@ -475,10 +499,24 @@ def _run() -> None:
                 world.biscuits_taken,
                 player.power_label,
                 player.charge,
+                world.combo_mult,
+                "" if toast is None else toast.title,
+                "" if toast is None else toast.line,
+                world.heat,
+                world.combo,
+                world.combo_next,
             )
             if state == State.OVER:
                 hits = draw_game_over(
-                    screen, world.display_score, ranking.best(), rank, saved_count, elapsed - over_at
+                    screen,
+                    world.display_score,
+                    ranking.best(),
+                    rank,
+                    saved_count,
+                    elapsed - over_at,
+                    world.combo_mult_max,
+                    new_medals,
+                    world.lava,
                 )
         else:
             backdrop.draw(demo.session.world, demo.session.player, elapsed, demo.session.effects)
@@ -490,6 +528,7 @@ def _run() -> None:
                     elapsed,
                     None if account is None else account.name,
                     0 if account is None else account.biscuits,
+                    None if account is None else account.medals,
                 )
             elif state == State.ACCOUNTS:
                 hits = draw_accounts(screen, accounts.list(), account, account_index)

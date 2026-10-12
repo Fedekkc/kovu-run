@@ -86,6 +86,11 @@ class PixelFontTest(unittest.TestCase):
                 level=3,
                 runs=2,
                 average=40,
+                mult=2,
+                names="Barrio",
+                have=3,
+                need=8,
+                heat="1.5",
             )
             self.assertTrue(font.covers(filled), filled)
 

@@ -259,6 +259,7 @@ class _BiscuitView(Protocol):
     lane: float
     z: float
     taken: bool
+    height: float
 
 
 class _BonusView(Protocol):
@@ -276,6 +277,8 @@ class _WorldView(Protocol):
     catch_timer: float
     speed: float
     distance: float
+    chase_pressure: float
+    mutator: str
 
 
 class _PlayerView(Protocol):
@@ -290,6 +293,8 @@ class _PlayerView(Protocol):
     extra_jumps: int
     flipping: bool
     flip_time: float
+    air_phase: float
+    slide_phase: float
 
 
 class _EffectsView(Protocol):
@@ -340,13 +345,13 @@ def _kovu_slot(player: _PlayerView) -> tuple[str, float]:
     if player.rocket_time > 0.0:
         return KOVU_ROCKET, player.run_time
     if player.sliding and not player.jumping:
-        return KOVU_SLIDE, player.run_time
+        return KOVU_SLIDE, player.slide_phase
     if player.flipping:
         return KOVU_FLIP, player.flip_time
     if player.powered:
         return KOVU_SUPER, player.run_time
     if player.jumping:
-        return KOVU_JUMP, player.run_time
+        return KOVU_JUMP, player.air_phase
     return KOVU_RUN, player.run_time
 
 
@@ -580,7 +585,7 @@ class Renderer:
         for biscuit in world.biscuits:
             if biscuit.taken or biscuit.z > horizon:
                 continue
-            box = pickup_box(biscuit.lane, biscuit.z)
+            box = pickup_box(biscuit.lane, biscuit.z, height=biscuit.height)
             color = (255, 196, 64, 220) if overlaps(body, box) else (255, 196, 64, 110)
             self._draw_prism(layer, box, color)
         for bonus in world.bonuses:
@@ -973,19 +978,22 @@ class Renderer:
             raw = world.catch_timer / _REACH_AT
             if raw > 1.0:
                 raw = 1.0
+        pressure = 0.0 if world.game_over else min(1.0, max(0.0, world.chase_pressure))
         dog_x, dog_y, dog_scale = project(player.lane_pos, PLAYER_DRAW_Z)
         dog_y -= player.height * _JUMP_LIFT
-        rest_x, _, _ = project(player.lane_pos, 1.35)
+        rest_z = 1.35 - 0.55 * pressure
+        rest_x, _, _ = project(player.lane_pos, rest_z)
         aim_x = dog_x
         aim_y = dog_y - 48.0 * dog_scale
-        sway = math.sin(time * 2.0) * 14.0 * (1.0 - raw)
-        bob = math.sin(time * 20.0) * 4.5 * (1.0 - raw)
+        ease = max(raw, pressure * 0.35)
+        sway = math.sin(time * 2.0) * 14.0 * (1.0 - ease)
+        bob = math.sin(time * 20.0) * 4.5 * (1.0 - ease)
         return _Pose(
             x=rest_x + sway + (aim_x - rest_x) * raw,
-            y=_GIRL_HEAD_Y + bob + (aim_y - _GIRL_HEAD_Y) * raw,
-            g=1.0 + raw * 0.5,
-            ease=raw,
-            stride=math.sin(time * 10.0),
+            y=_GIRL_HEAD_Y + bob + (aim_y - _GIRL_HEAD_Y) * raw - 18.0 * pressure,
+            g=1.0 + raw * 0.5 + pressure * 0.12,
+            ease=ease,
+            stride=math.sin(time * (10.0 + 6.0 * pressure)),
         )
 
     def _girl_back(self, pose: _Pose) -> None:
@@ -1518,14 +1526,19 @@ class Renderer:
         )
 
     def _draw_biscuit(self, biscuit: _BiscuitView, time: float) -> None:
-        x, y, scale = project(biscuit.lane, biscuit.z)
-        bob = math.sin(time * 6.0 + biscuit.z) * 6.0 * scale
-        if self._blit_slot(BISCUIT, x, y - bob, scale, time + biscuit.z * _SPIN_SPREAD):
+        x, ground_y, scale = project(biscuit.lane, biscuit.z)
+        # El lift tiene que escalar con la perspectiva; si no, lejos quedan en el cielo
+        # y al acercarse parecen caer al vagón.
+        on_deck = biscuit.height > 0.05
+        y = ground_y - units_to_px(biscuit.height, scale) if on_deck else ground_y
+        bob = 0.0 if on_deck else math.sin(time * 6.0 + biscuit.z) * 6.0 * scale
+        feet = y - bob
+        if self._blit_slot(BISCUIT, x, feet, scale, time + biscuit.z * _SPIN_SPREAD):
             return
-        cy = y - 20.0 * scale - bob
+        cy = feet - 20.0 * scale
         length = _BISCUIT_W * 0.5 * scale
         knob = 7.2 * scale
-        self._shadow(x, y, 14.0 * scale, 4.5 * scale)
+        self._shadow(x, ground_y, 14.0 * scale, 4.5 * scale)
         for side_x in (-1.0, 1.0):
             for side_y in (-1.0, 1.0):
                 self._disc(

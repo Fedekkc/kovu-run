@@ -26,7 +26,7 @@ from game.settings import (
 )
 from game.sprites import AGILITY_ICON, BISCUIT, JUMP_ICON, SLIDE_ICON
 
-MAX_LEVEL = 8
+MAX_LEVEL = 10
 
 COPY_ROCKET = "Cohete"
 COPY_SUPER = "Super salto"
@@ -58,17 +58,17 @@ POWER_LABEL = {
 }
 
 _BASE_COST: dict[str, int] = {
-    "rocket": 45,
-    "super": 40,
-    "double": 40,
-    "jump": 28,
-    "agility": 26,
-    "slide": 26,
-    "magnet": 32,
-    "lucky": 34,
-    "vault": 50,
+    "rocket": 55,
+    "super": 48,
+    "double": 48,
+    "jump": 30,
+    "agility": 28,
+    "slide": 28,
+    "magnet": 36,
+    "lucky": 38,
+    "vault": 60,
 }
-_COST_STEP = 22
+_COST_STEP = 26
 
 
 @dataclass(frozen=True)
@@ -138,9 +138,10 @@ def level_of(levels: Mapping[str, int], upgrade_id: str) -> int:
 
 
 def cost_for(upgrade_id: str, level: int) -> int:
-    """Precio para subir desde `level` al siguiente."""
+    """Precio para subir desde `level` al siguiente; sube más fuerte en niveles altos."""
     base = _BASE_COST.get(upgrade_id, 30)
-    return base + _COST_STEP * max(0, level)
+    step = max(0, level)
+    return base + _COST_STEP * step + 6 * step * step
 
 
 def run_mods(levels: Mapping[str, int] | None = None) -> RunMods:
@@ -155,21 +156,21 @@ def run_mods(levels: Mapping[str, int] | None = None) -> RunMods:
     lucky = level_of(src, "lucky")
     vault = level_of(src, "vault")
     return RunMods(
-        rocket_time=ROCKET_TIME + 0.45 * rocket,
-        rocket_speed=ROCKET_SPEED + 0.04 * rocket,
-        super_hold=SUPER_HOLD + 0.45 * super_level,
+        rocket_time=ROCKET_TIME + 0.20 * rocket,
+        rocket_speed=ROCKET_SPEED + 0.02 * rocket,
+        super_hold=SUPER_HOLD + 0.20 * super_level,
         super_jump_time=SUPER_JUMP_TIME,
-        super_jump_scale=SUPER_JUMP_SCALE + 0.08 * super_level,
-        double_hold=DOUBLE_HOLD + 0.45 * double,
+        super_jump_scale=SUPER_JUMP_SCALE + 0.04 * super_level,
+        double_hold=DOUBLE_HOLD + 0.20 * double,
         double_jump_time=DOUBLE_JUMP_TIME,
-        double_jump_scale=DOUBLE_JUMP_SCALE + 0.10 * double,
-        jump_time=JUMP_TIME + 0.03 * jump,
-        jump_scale=1.0 + 0.05 * jump,
-        lane_switch=LANE_SWITCH * (1.0 - 0.06 * agility),
-        slide_time=SLIDE_TIME + 0.06 * slide,
-        pickup_span=PICKUP_SPAN + 0.14 * magnet,
-        luck_weight=LUCK_WEIGHT + lucky,
-        bank_rate=BANK_RATE + 0.07 * vault,
+        double_jump_scale=DOUBLE_JUMP_SCALE + 0.05 * double,
+        jump_time=JUMP_TIME + 0.02 * jump,
+        jump_scale=1.0 + 0.03 * jump,
+        lane_switch=LANE_SWITCH * (1.0 - 0.035 * agility),
+        slide_time=SLIDE_TIME + 0.03 * slide,
+        pickup_span=PICKUP_SPAN + 0.07 * magnet,
+        luck_weight=LUCK_WEIGHT + min(5, lucky),
+        bank_rate=BANK_RATE + 0.035 * vault,
     )
 
 

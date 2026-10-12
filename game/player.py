@@ -14,6 +14,8 @@ from game.upgrades import POWER_LABEL, RunMods
 _LANE_MIN = 0
 _LANE_MAX = 2
 _LANE_START = 1
+# Agacharse en el aire acelera la caída (no aplica al cohete).
+_FAST_FALL = 2.8
 
 
 def _smoothstep(t: float) -> float:
@@ -65,6 +67,7 @@ class Player:
         self._jump_scale = self.mods.jump_scale
         self._jump_floor = 0.0
         self._powered_jump = False
+        self._fast_fall = False
         self.rocket_time = 0.0
         self.super_time = 0.0
         self.double_time = 0.0
@@ -149,25 +152,42 @@ class Player:
         if key in (pygame.K_DOWN, pygame.K_s):
             self._begin_slide()
 
+    @property
+    def air_phase(self) -> float:
+        """0→1 along the jump arc; drives the jump sprite strip."""
+        if not self.jumping or self._jump_limit <= 0.0:
+            return 0.0
+        return min(1.0, self._jump_t / self._jump_limit)
+
+    @property
+    def slide_phase(self) -> float:
+        limit = self.mods.slide_time
+        if not self.sliding or limit <= 0.0:
+            return 0.0
+        return min(1.0, self._slide_t / limit)
+
     def update(self, dt: float, floor: float = 0.0) -> None:
         self.floor = max(0.0, floor)
         self.run_time += dt
         self._advance_lane(dt)
         self._tick_holds(dt)
         if self.rocket_time > 0.0:
+            remaining = self.rocket_time
             self.rocket_time = max(0.0, self.rocket_time - dt)
-            if self.rocket_time <= 0.0:
-                self._emit(Kind.LAND)
-            self.jumping = False
             self.sliding = False
-            self._jump_t = 0.0
             self._slide_t = 0.0
-            self._powered_jump = False
-            self.flipping = False
             if self.rocket_time > 0.0:
+                self.jumping = False
+                self._jump_t = 0.0
+                self._powered_jump = False
+                self._fast_fall = False
+                self.flipping = False
                 self.height = ROCKET_FLOOR
-            else:
-                self.height = self.floor
+                return
+            self._begin_rocket_fall()
+            # Solo el sobrante del frame cuenta para la caída (un dt grande no la “salta”).
+            self._advance_jump(max(0.0, dt - remaining))
+            self.settle(self.floor)
             return
         self._advance_jump(dt)
         self._advance_slide(dt)
@@ -214,6 +234,21 @@ class Player:
         if self._switch_t >= limit:
             self.lane_pos = float(self.lane)
 
+    def _begin_rocket_fall(self) -> None:
+        """Deja el cohete en el ápice de un arco de salto y cae con la misma física."""
+        self.jumping = True
+        self.sliding = False
+        self._powered_jump = False
+        self._fast_fall = False
+        self.flipping = False
+        self.flip_time = 0.0
+        self._jump_floor = self.floor
+        peak = max(0.01, ROCKET_FLOOR - self._jump_floor)
+        self._jump_scale = peak
+        self._jump_limit = self.mods.jump_time
+        self._jump_t = self._jump_limit * 0.5
+        self.height = self._jump_floor + self._jump_scale
+
     def _begin_jump(self) -> None:
         if self.rocket_time > 0.0 or self.sliding:
             return
@@ -221,6 +256,7 @@ class Player:
             if self.extra_jumps <= 0:
                 return
             self.extra_jumps -= 1
+            self._fast_fall = False
             self._jump_scale = max(self._jump_scale, self.mods.double_jump_scale)
             self._jump_limit = max(self._jump_limit, self.mods.double_jump_time)
             ratio = min(1.0, max(0.0, (self.height - self._jump_floor) / max(0.01, self._jump_scale)))
@@ -231,6 +267,7 @@ class Player:
             return
         powered = self.super_time > 0.0
         self._powered_jump = powered
+        self._fast_fall = False
         self._jump_limit = self.mods.super_jump_time if powered else self.mods.jump_time
         self._jump_scale = self.mods.super_jump_scale if powered else self.mods.jump_scale
         if self.double_time > 0.0:
@@ -244,6 +281,11 @@ class Player:
     def _advance_jump(self, dt: float) -> None:
         if not self.jumping:
             return
+        if self._fast_fall:
+            apex = self._jump_limit * 0.5
+            if self._jump_t < apex:
+                self._jump_t = apex
+            dt *= _FAST_FALL
         previous = self.height
         self._jump_t += dt
         self.flip_time += dt
@@ -262,6 +304,7 @@ class Player:
         self.height = floor
         self.floor = floor
         self._powered_jump = False
+        self._fast_fall = False
         self.flipping = False
         self._emit(Kind.LAND)
         self._jump_limit = self.mods.jump_time
@@ -271,7 +314,10 @@ class Player:
             self.extra_jumps = 1
 
     def _begin_slide(self) -> None:
-        if self.rocket_time > 0.0 or self.sliding or self.jumping:
+        if self.rocket_time > 0.0 or self.sliding:
+            return
+        if self.jumping:
+            self._fast_fall = True
             return
         self.sliding = True
         self._slide_t = 0.0

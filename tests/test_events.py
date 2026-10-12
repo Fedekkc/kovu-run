@@ -74,6 +74,25 @@ class EventsTest(unittest.TestCase):
         kinds = [event.kind for event in player.feed.drain()]
         self.assertIn(Kind.LAND, kinds)
 
+    def test_crouch_in_air_fast_falls(self) -> None:
+        normal = Player()
+        normal._begin_jump()
+        for _ in range(10):
+            normal.update(FRAME)
+        height_normal = normal.height
+
+        dive = Player()
+        dive._begin_jump()
+        for _ in range(5):
+            dive.update(FRAME)
+        dive.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_DOWN))
+        self.assertTrue(dive._fast_fall)
+        self.assertFalse(dive.sliding)
+        for _ in range(5):
+            dive.update(FRAME)
+        self.assertLess(dive.height, height_normal)
+
 
 if __name__ == "__main__":
     unittest.main()
+

@@ -63,9 +63,13 @@ class BonusTest(unittest.TestCase):
         self.assertGreater(player.speed_scale, 1.0)
         self.assertEqual(player.power_label, "Cohete")
         player.update(ROCKET_TIME + 0.05)
+        self.assertTrue(player.jumping)
+        self.assertGreater(player.height, 0.0)
+        self.assertEqual(player.power_label, "")
+        while player.jumping:
+            player.update(1.0 / 60.0)
         self.assertTrue(overlaps(player.hitbox(), full))
         self.assertEqual(player.height, 0.0)
-        self.assertEqual(player.power_label, "")
 
     def test_super_jump_clears_a_full_obstacle(self) -> None:
         player = Player()

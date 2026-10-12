@@ -20,6 +20,10 @@ class FakePlayer:
         self.speed_scale = 1.0
         self.pickup_span = 1.0
         self.spawn_luck = 0
+        self.height = 0.0
+        self.floor = 0.0
+        self.jumping = False
+        self.rocket_time = 0.0
         self.granted: list[str] = []
 
     def hitbox(self) -> Box:
@@ -93,14 +97,71 @@ class WorldTest(unittest.TestCase):
         self.assertFalse(world.game_over)
 
     def test_display_score(self) -> None:
+        from game.settings import heat_at
+
         world = World(random.Random(1))
-        self.assertEqual(BISCUIT_POINTS, 25)
+        self.assertEqual(BISCUIT_POINTS, 20)
         self.assertEqual(world.display_score, 0)
 
         world.distance = 10.9
-        world.biscuits_taken = 4
-        expected = int(world.distance) + world.biscuits_taken * 25
+        world.biscuit_points = 100
+        expected = int(world.distance * heat_at(world.distance)) + world.biscuit_points
         self.assertEqual(world.display_score, expected)
+
+    def test_heat_scales_late_distance(self) -> None:
+        from game.settings import heat_at
+
+        self.assertAlmostEqual(heat_at(0.0), 1.0)
+        self.assertGreater(heat_at(1000.0), 1.2)
+        self.assertGreater(heat_at(5000.0), heat_at(1000.0))
+
+    def test_biscuit_combo_is_exclusive(self) -> None:
+        world = World(random.Random(1))
+        world.obstacles.clear()
+        world.biscuits.clear()
+        world.bonuses.clear()
+        world.cursor = SPAWN_Z + 50
+        player = FakePlayer(1, clear=False)
+        for _ in range(6):
+            world.biscuits.append(Biscuit(lane=1, z=PLAYER_DRAW_Z))
+            world.update(FRAME, player)
+        self.assertEqual(world.biscuits_taken, 6)
+        self.assertEqual(world.combo_mult, 1)
+        self.assertEqual(world.biscuit_points, 6 * BISCUIT_POINTS)
+        for _ in range(3):
+            world.biscuits.append(Biscuit(lane=1, z=PLAYER_DRAW_Z))
+            world.update(FRAME, player)
+        self.assertEqual(world.combo_mult, 2)
+
+    def test_speed_keeps_climbing_late(self) -> None:
+        world = World(random.Random(1))
+        early = world._speed_at(500.0)
+        mid = world._speed_at(3000.0)
+        late = world._speed_at(6000.0)
+        self.assertGreater(mid, early)
+        self.assertGreater(late, mid)
+
+    def test_queue_pattern_forces_wagon(self) -> None:
+        world = World(random.Random(1))
+        world.obstacles.clear()
+        world.biscuits.clear()
+        world.bonuses.clear()
+        world.cursor = 0.0
+        world.queue_pattern("wagon_express")
+        world._fill()
+        wagons = [item for item in world.obstacles if item.kind == WAGON]
+        self.assertGreaterEqual(len(wagons), 4)
+
+    def test_lava_gaps_are_tighter(self) -> None:
+        from game.settings import MODE_LAVA
+
+        calm = World(random.Random(2))
+        calm.distance = 100.0
+        lava = World(random.Random(2))
+        lava.configure(MODE_LAVA)
+        lava.reset()
+        lava.distance = 100.0
+        self.assertLess(lava._gap(), calm._gap())
 
 
 if __name__ == "__main__":

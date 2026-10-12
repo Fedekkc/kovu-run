@@ -54,11 +54,14 @@ from game.pixelfont import default_font_path
 from tools.forge import barrio, font, girl, kovu, kovu_side, pickups, props, scenery, sound
 from tools.forge.canvas import Canvas, strip
 
-RUN_FPS = 14.0
+RUN_FPS = 16.0
 BLINK_FPS = 1.5
 FLAME_FPS = 16.0
 SPARK_FPS = 12.0
 FLIP_FPS = 12.0
+# Jump/slide strips are keyed to air_phase / slide_phase (0→1), so fps == frame count.
+JUMP_FPS = float(kovu.JUMP_FRAMES)
+SLIDE_FPS = float(kovu.SLIDE_FRAMES)
 GIRL_FPS = 10.0
 GALLOP_FPS = 12.0
 WIND_FPS = 2.5
@@ -85,8 +88,20 @@ class Bake:
 def bakes() -> list[Bake]:
     return [
         Bake(KOVU_RUN, "kovu_run.png", [kovu.standing(pose) for pose in kovu.run_poses()], RUN_FPS),
-        Bake(KOVU_JUMP, "kovu_jump.png", [kovu.standing(kovu.jump_pose())], 0.0),
-        Bake(KOVU_SLIDE, "kovu_slide.png", [kovu.sliding()], 0.0),
+        Bake(
+            KOVU_JUMP,
+            "kovu_jump.png",
+            [kovu.standing(pose) for pose in kovu.jump_poses()],
+            JUMP_FPS,
+            loop=False,
+        ),
+        Bake(
+            KOVU_SLIDE,
+            "kovu_slide.png",
+            [kovu.sliding(frame) for frame in range(kovu.SLIDE_FRAMES)],
+            SLIDE_FPS,
+            loop=False,
+        ),
         Bake(
             KOVU_ROCKET,
             "kovu_rocket.png",

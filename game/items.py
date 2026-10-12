@@ -28,6 +28,7 @@ class Biscuit:
     z: float
     taken: bool = False
     kind: str = BISCUIT
+    height: float = 0.0
 
 
 @dataclass

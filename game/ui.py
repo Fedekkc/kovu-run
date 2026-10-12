@@ -32,11 +32,20 @@ COPY_OPTIONS_KEY = "O  opciones"
 COPY_QUIT = "Esc  salir"
 COPY_CONTROLS = "Controles"
 COPY_BTN_PLAY = "Jugar"
+COPY_BTN_LAVA = "El piso es lava"
 COPY_BTN_CREATE = "Crear cuenta"
 COPY_BTN_ACCOUNTS = "Cuentas"
 COPY_BTN_UPGRADES = "Mejoras"
 COPY_BTN_OPTIONS = "Opciones"
 COPY_BTN_QUIT = "Salir"
+COPY_LAVA_KEY = "L  el piso es lava"
+COPY_COMBO = "x{mult}"
+COPY_COMBO_MAX = "Combo máx x{mult}"
+COPY_COMBO_NEXT = "{have}/{need}"
+COPY_HEAT = "calor x{heat}"
+COPY_MEDALS = "Medallas: {names}"
+COPY_NO_MEDALS = "Sin medallas aún"
+COPY_LAVA_HINT = "Solo trenes · no toques el piso"
 COPY_BTN_BACK = "Volver"
 COPY_BTN_NEW = "Nueva"
 COPY_BTN_USE = "Usar"
@@ -281,17 +290,34 @@ def _ranking(screen: pygame.Surface, entries: Sequence[RankingEntry], top: int) 
         y += row_h
 
 
-def _account_card(screen: pygame.Surface, name: str | None, wallet: int, top: int) -> pygame.Rect:
+def _account_card(
+    screen: pygame.Surface,
+    name: str | None,
+    wallet: int,
+    top: int,
+    medals: Sequence[str] | None = None,
+) -> pygame.Rect:
     title = _text(name if name else COPY_NO_ACCOUNT, Tone.SUN, MEDIUM)
     line_h = default_font().height * SMALL
+    extra = line_h + 6 if name and medals is not None else 0
     width = 340
-    rect = pygame.Rect(0, top, width, PAD * 2 + title.get_height() + 10 + line_h)
+    rect = pygame.Rect(0, top, width, PAD * 2 + title.get_height() + 10 + line_h + extra)
     rect.right = WIDTH - MARGIN
     _frame(screen, rect, Tone.SUN if name else Tone.MAUVE)
     screen.blit(title, (rect.left + PAD, rect.top + PAD))
     y = rect.top + PAD + title.get_height() + 10
     if name:
         _wallet(screen, wallet, rect.left + PAD, y, SMALL)
+        y += line_h + 6
+        if medals is not None:
+            from game.medals import label_for
+
+            if medals:
+                short = ", ".join(label_for(item).split(" (")[0] for item in medals[:3])
+                line = COPY_MEDALS.format(names=short)
+            else:
+                line = COPY_NO_MEDALS
+            screen.blit(_text(line, Tone.WALK_LIGHT, SMALL), (rect.left + PAD, y))
     else:
         screen.blit(_text(COPY_SAVE_HINT, Tone.WALK_LIGHT, SMALL), (rect.left + PAD, y))
     return rect
@@ -321,6 +347,9 @@ def _menu_buttons(screen: pygame.Surface, top: int, has_account: bool) -> Hits:
     primary = COPY_BTN_PLAY if has_account else COPY_BTN_CREATE
     _button(screen, hits, Action.PLAY, primary, pygame.Rect(left, y, width, BTN_H), Tone.SUN)
     y += BTN_H + BTN_GAP
+    if has_account:
+        _button(screen, hits, Action.LAVA, COPY_BTN_LAVA, pygame.Rect(left, y, width, BTN_H), Tone.CORAL)
+        y += BTN_H + BTN_GAP
     for label, action, accent in (
         (COPY_BTN_ACCOUNTS, Action.ACCOUNTS, Tone.MAUVE),
         (COPY_BTN_UPGRADES, Action.UPGRADES, Tone.MAUVE),
@@ -333,6 +362,9 @@ def _menu_buttons(screen: pygame.Surface, top: int, has_account: bool) -> Hits:
     screen.blit(keys, (left, y + 8))
     tip = _text(f"{COPY_LANE} · {COPY_JUMP}", Tone.WALK_LIGHT, SMALL)
     screen.blit(tip, (left, y + 8 + keys.get_height() + 6))
+    if has_account:
+        lava_tip = _text(COPY_LAVA_KEY, Tone.WALK_LIGHT, SMALL)
+        screen.blit(lava_tip, (left, y + 8 + keys.get_height() + tip.get_height() + 12))
     return hits
 
 
@@ -358,12 +390,13 @@ def draw_menu(
     time: float,
     account_name: str | None = None,
     wallet: int = 0,
+    medals: Sequence[str] | None = None,
 ) -> Hits:
     _dim(screen, MENU_DIM)
     marquee = _marquee(screen, time)
     top = marquee.bottom + 48
     _ranking(screen, entries, top)
-    card = _account_card(screen, account_name, wallet, top)
+    card = _account_card(screen, account_name, wallet, top, medals)
     hits = _menu_buttons(screen, card.bottom + 12, account_name is not None)
     hits.add(Action.ACCOUNTS, card)
     _gallop(screen, time)
@@ -378,21 +411,39 @@ def draw_hud(
     biscuits: int,
     power: str = "",
     charge: float = 0.0,
+    combo: int = 1,
+    toast_title: str = "",
+    toast_line: str = "",
+    heat: float = 1.0,
+    combo_streak: int = 0,
+    combo_next: int = 0,
 ) -> None:
     label = _text(COPY_POINTS, Tone.SUN, SMALL)
     value = _text(str(score), Tone.CREAM, LARGE)
-    width = max(label.get_width(), value.get_width()) + PAD * 2
-    rect = pygame.Rect(16, HUD_TOP, max(160, width), PAD * 2 + label.get_height() + 6 + value.get_height())
+    rows: list[pygame.Surface] = [label, value]
+    if heat >= 1.05:
+        rows.append(_text(COPY_HEAT.format(heat=f"{heat:.2f}".rstrip("0").rstrip(".")), Tone.NEON_CYAN, SMALL))
+    width = max(row.get_width() for row in rows) + PAD * 2
+    height = sum(row.get_height() for row in rows) + 6 * (len(rows) - 1) + PAD * 2
+    rect = pygame.Rect(16, HUD_TOP, max(160, width), height)
     _frame(screen, rect)
-    _stack(screen, (label, value), rect.left + PAD, rect.top + PAD, 6)
+    _stack(screen, rows, rect.left + PAD, rect.top + PAD, 6)
 
     best_label = _text(COPY_BEST, Tone.SUN, SMALL)
     best_value = _text(str(best), Tone.CREAM, LARGE)
     count = _text(str(biscuits), Tone.CREAM, LARGE)
     icon = _icon(BISCUIT, count.get_height())
     icon_w = 0 if icon is None else icon.get_width() + 8
+    combo_img = None
+    combo_w = 0
+    if combo > 1:
+        combo_img = _text(COPY_COMBO.format(mult=combo), Tone.CORAL, LARGE)
+        combo_w = combo_img.get_width() + 16
+    elif combo_next > 0 and combo_streak > 0:
+        combo_img = _text(COPY_COMBO_NEXT.format(have=combo_streak, need=combo_next), Tone.WALK_LIGHT, MEDIUM)
+        combo_w = combo_img.get_width() + 16
     text_w = max(best_label.get_width(), best_value.get_width())
-    width = PAD + text_w + 28 + icon_w + count.get_width() + PAD
+    width = PAD + text_w + 28 + icon_w + count.get_width() + combo_w + PAD
     rect = pygame.Rect(0, HUD_TOP, width, PAD * 2 + best_label.get_height() + 6 + best_value.get_height())
     rect.right = WIDTH - 16
     _frame(screen, rect)
@@ -402,8 +453,31 @@ def draw_hud(
     if icon is not None:
         screen.blit(icon, (x, y))
     screen.blit(count, (x + icon_w, y))
+    if combo_img is not None:
+        screen.blit(combo_img, (x + icon_w + count.get_width() + 12, y))
     if power:
         _power(screen, power, charge)
+    if toast_title or toast_line:
+        _story_toast(screen, toast_title, toast_line)
+
+
+def _story_toast(screen: pygame.Surface, title: str, line: str) -> None:
+    rows: list[pygame.Surface] = []
+    if title:
+        rows.append(_text(title, Tone.SUN, MEDIUM))
+    if line:
+        rows.append(_text(line, Tone.CREAM, SMALL))
+    if not rows:
+        return
+    width = max(row.get_width() for row in rows) + PAD * 2
+    height = sum(row.get_height() for row in rows) + 8 * (len(rows) - 1) + PAD * 2
+    rect = pygame.Rect(0, HEIGHT - 120, min(WIDTH - 48, width), height)
+    rect.centerx = WIDTH // 2
+    _frame(screen, rect, Tone.MAUVE)
+    y = rect.top + PAD
+    for row in rows:
+        screen.blit(row, row.get_rect(midtop=(rect.centerx, y)))
+        y += row.get_height() + 8
 
 
 def _power(screen: pygame.Surface, power: str, charge: float) -> None:
@@ -433,6 +507,9 @@ def draw_game_over(
     rank: int,
     banked: int = 0,
     since: float = COUNT_TIME,
+    combo_max: int = 1,
+    new_medals: Sequence[str] | None = None,
+    lava: bool = False,
 ) -> Hits:
     hits = Hits()
     _dim(screen, OVER_DIM)
@@ -441,6 +518,8 @@ def draw_game_over(
         _text(COPY_CAUGHT, Tone.NEON_PINK, CAUGHT_SCALE),
         _text(str(counted), Tone.CREAM, SCORE_SCALE),
     ]
+    if lava:
+        rows.append(_text(COPY_LAVA_HINT, Tone.CORAL, SMALL))
     if rank == 1:
         rows.append(_text(COPY_NEW_RECORD, Tone.SUN, MEDIUM) if _blink(since) else None)
     elif rank > 1:
@@ -448,6 +527,14 @@ def draw_game_over(
     else:
         rows.append(_text(COPY_OUTSIDE, Tone.WALK_LIGHT, MEDIUM))
         rows.append(_text(COPY_RECORD.format(best=best), Tone.WALK_LIGHT, SMALL))
+    if combo_max > 1:
+        rows.append(_text(COPY_COMBO_MAX.format(mult=combo_max), Tone.CORAL, SMALL))
+    if new_medals:
+        from game.medals import label_for
+
+        rows.append(
+            _text(COPY_MEDALS.format(names=", ".join(label_for(m) for m in new_medals)), Tone.SUN, SMALL)
+        )
     if banked > 0:
         rows.append(_text(COPY_BANKED.format(count=banked), Tone.SUN, SMALL))
     blank = default_font().height * MEDIUM

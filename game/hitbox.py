@@ -161,13 +161,14 @@ def on_deck(body: Box, deck: Box) -> bool:
     return body.bottom >= deck.top - WAGON_LAND
 
 
-def pickup_box(lane: float, z: float, span: float = 1.0) -> Box:
+def pickup_box(lane: float, z: float, span: float = 1.0, height: float = 0.0) -> Box:
     scale = max(1.0, span)
+    feet = max(0.0, height)
     return Box(
         float(lane),
         PICKUP_HALF_LANE * scale,
         float(z),
         PICKUP_HALF_Z * scale,
-        0.0,
-        PICKUP_TOP,
+        feet,
+        feet + PICKUP_TOP,
     )

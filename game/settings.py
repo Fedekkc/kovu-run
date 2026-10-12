@@ -19,23 +19,48 @@ SPAWN_Z = 132.0
 DESPAWN_Z = -10.0
 PLAYER_DRAW_Z = 2.5
 
-# Ritmo
-BASE_SPEED = 34.0
-MAX_SPEED = 82.0
-ACCEL_PER_METER = 0.018
+# Ritmo: arranque legible, techo alto y lejos (la partida sigue escalando).
+BASE_SPEED = 30.0
+MAX_SPEED = 94.0
+ACCEL_PER_METER = 0.010
+LATE_SPEED_FROM = 2800.0
+LATE_ACCEL_PER_METER = 0.006
 # Jugador
-LANE_SWITCH = 0.13
+LANE_SWITCH = 0.18
 JUMP_TIME = 0.64
 SLIDE_TIME = 0.52
 
-# Puntaje (ranking). La alcancía mejora cuántas galletas van a la cuenta.
-BISCUIT_POINTS = 25
+# Puntaje. El combo es exclusivo; el calor de distancia hace que “llegar lejos” pague.
+BISCUIT_POINTS = 20
+COMBO_WINDOW = 2.4
+COMBO_MAX = 3
+COMBO_X2_AT = 8
+COMBO_X3_AT = 15
+# Calor de score por metros (interpolado). Multiplica la distancia en el marcador.
+HEAT_KEYS = (
+    (0.0, 1.0),
+    (500.0, 1.1),
+    (1000.0, 1.25),
+    (2000.0, 1.5),
+    (3500.0, 1.85),
+    (5000.0, 2.25),
+    (7500.0, 2.75),
+    (10000.0, 3.0),
+)
 PICKUP_SPAN = 1.0
 LUCK_WEIGHT = 0
 BANK_RATE = 0.0
 
+# Medallas de distancia (metros). Solo bragging rights.
+MEDAL_THRESHOLDS = (
+    ("barrio", 500),
+    ("avenida", 1000),
+    ("autopista", 2000),
+    ("leyenda", 5000),
+)
+
 # Tipos de obstáculo. Chocarlos sin esquivarlos termina la partida.
-LOW = "low"    # se salta
+LOW = "low"  # se salta
 HIGH = "high"  # se esquiva agachándose
 FULL = "full"  # hay que cambiar de carril
 WAGON = "wagon"  # se trepa y se corre un tramo elevado
@@ -46,15 +71,37 @@ ROCKET = "rocket"
 SUPER_JUMP = "super_jump"
 DOUBLE_JUMP = "double_jump"
 
-ROCKET_TIME = 3.6
-ROCKET_SPEED = 1.45
-# Tiempo en el aire del salto potenciado (arco).
+ROCKET_TIME = 2.8
+ROCKET_SPEED = 1.28
 SUPER_JUMP_TIME = 0.86
-SUPER_JUMP_SCALE = 1.6
+SUPER_JUMP_SCALE = 1.45
 DOUBLE_JUMP_TIME = 0.8
-DOUBLE_JUMP_SCALE = 1.95
-# Ventana para usar el poder después de agarrarlo (no es el vuelo).
-SUPER_HOLD = 3.6
-DOUBLE_HOLD = 3.6
+DOUBLE_JUMP_SCALE = 1.75
+SUPER_HOLD = 2.8
+DOUBLE_HOLD = 2.8
 
 RANKING_LIMIT = 10
+
+# Modos de partida
+MODE_NORMAL = "normal"
+MODE_LAVA = "lava"
+
+
+def combo_mult_for(streak: int) -> int:
+    if streak >= COMBO_X3_AT:
+        return COMBO_MAX
+    if streak >= COMBO_X2_AT:
+        return 2
+    return 1
+
+
+def heat_at(distance: float) -> float:
+    """Multiplicador de metros en el score; crece con la profundidad de la corrida."""
+    if distance <= HEAT_KEYS[0][0]:
+        return HEAT_KEYS[0][1]
+    for (start, low), (end, high) in zip(HEAT_KEYS, HEAT_KEYS[1:]):
+        if distance <= end:
+            span = end - start
+            t = 0.0 if span <= 0.0 else (distance - start) / span
+            return low + (high - low) * t
+    return HEAT_KEYS[-1][1]

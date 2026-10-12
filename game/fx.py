@@ -167,7 +167,11 @@ class Effects:
         if event.kind == Kind.BISCUIT:
             x, y = self._at_body(event, player)
             self._burst(x, y, 10, SPARK_GOLD, (180.0, 320.0), 4.0)
-            self.floaters.append(Floater(COPY_POINTS.format(points=BISCUIT_POINTS), x, y - 30.0, Tone.SUN))
+            try:
+                points = int(event.tag) if event.tag else BISCUIT_POINTS
+            except ValueError:
+                points = BISCUIT_POINTS
+            self.floaters.append(Floater(COPY_POINTS.format(points=points), x, y - 30.0, Tone.SUN))
             return
         if event.kind == Kind.BONUS:
             x, y = self._at_body(event, player)

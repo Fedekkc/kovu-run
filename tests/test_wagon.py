@@ -79,6 +79,19 @@ class WagonTest(unittest.TestCase):
         self.assertTrue(Obstacle(1, 10.0, WAGON).climbable)
         self.assertFalse(Obstacle(1, 10.0, FULL).climbable)
 
+    def test_one_biscuit_per_wagon_car(self) -> None:
+        world = World()
+        world.obstacles.clear()
+        world.biscuits.clear()
+        world.bonuses.clear()
+        world.cursor = 0.0
+        world._wagon(10.0)
+        wagons = [item for item in world.obstacles if item.kind == WAGON]
+        self.assertEqual(len(world.biscuits), len(wagons))
+        for biscuit, wagon in zip(world.biscuits, wagons):
+            self.assertAlmostEqual(biscuit.z, wagon.z)
+            self.assertGreater(biscuit.height, 0.5)
+
 
 if __name__ == "__main__":
     unittest.main()

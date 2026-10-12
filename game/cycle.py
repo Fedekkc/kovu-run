@@ -17,15 +17,15 @@ SUNSET = Mood(0.0, 0.0)
 NIGHT = Mood(1.0, 0.0)
 STORM = Mood(1.0, 1.0)
 
+# Keyframes ordenados en [0, CYCLE_M]. El tramo entre dos keys interpola.
 _KEYS: tuple[tuple[float, Mood], ...] = (
     (0.0, SUNSET),
-    (1000.0, SUNSET),
-    (1500.0, NIGHT),
-    (1750.0, NIGHT),
-    (1300.0, STORM),
-    (2500.0, NIGHT),
-    (2750.0, NIGHT),
-    (2950.0, STORM),
+    (400.0, SUNSET),
+    (1000.0, NIGHT),
+    (1300.0, NIGHT),
+    (1600.0, STORM),
+    (1950.0, STORM),
+    (2200.0, NIGHT),
     (CYCLE_M, SUNSET),
 )
 
@@ -34,6 +34,10 @@ def mood_at(distance: float) -> Mood:
     at = distance % CYCLE_M
     for (start, low), (end, high) in zip(_KEYS, _KEYS[1:]):
         if at <= end:
-            t = (at - start) / (end - start)
-            return Mood(low.night + (high.night - low.night) * t, low.rain + (high.rain - low.rain) * t)
+            span = end - start
+            t = 0.0 if span <= 0.0 else (at - start) / span
+            return Mood(
+                low.night + (high.night - low.night) * t,
+                low.rain + (high.rain - low.rain) * t,
+            )
     return SUNSET

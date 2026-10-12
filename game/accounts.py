@@ -27,6 +27,7 @@ class Account:
     name: str
     biscuits: int = 0
     levels: dict[str, int] = field(default_factory=dict)
+    medals: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -75,7 +76,7 @@ class LocalAccountDAO:
         data = self._read()
         if any(account.name == name for account in data.accounts):
             raise AccountError(COPY_NAME_TAKEN)
-        account = Account(name, 0, {})
+        account = Account(name, 0, {}, [])
         data.accounts.append(account)
         data.active = name
         self._write(data)
@@ -91,6 +92,19 @@ class LocalAccountDAO:
 
     def update(self, account: Account) -> None:
         data = self._read()
+        medals = [
+            medal
+            for medal in account.medals
+            if isinstance(medal, str) and medal
+        ]
+        # Orden estable, sin duplicados.
+        seen: set[str] = set()
+        clean_medals: list[str] = []
+        for medal in medals:
+            if medal in seen:
+                continue
+            seen.add(medal)
+            clean_medals.append(medal)
         stored = Account(
             account.name,
             max(0, account.biscuits),
@@ -99,6 +113,7 @@ class LocalAccountDAO:
                 for key, value in account.levels.items()
                 if isinstance(key, str) and type(value) is int and value > 0
             },
+            clean_medals,
         )
         for index, row in enumerate(data.accounts):
             if row.name == stored.name:
@@ -154,7 +169,12 @@ class LocalAccountDAO:
         payload = {
             "active": data.active,
             "accounts": [
-                {"name": account.name, "biscuits": account.biscuits, "levels": account.levels}
+                {
+                    "name": account.name,
+                    "biscuits": account.biscuits,
+                    "levels": account.levels,
+                    "medals": account.medals,
+                }
                 for account in data.accounts
             ],
         }
@@ -181,4 +201,12 @@ def _parse_account(raw: object) -> Account | None:
         for key, value in raw_levels.items():
             if isinstance(key, str) and type(value) is int and value > 0:
                 levels[key] = value
-    return Account(name, biscuits, levels)
+    medals: list[str] = []
+    raw_medals = raw.get("medals", [])
+    if isinstance(raw_medals, list):
+        seen: set[str] = set()
+        for item in raw_medals:
+            if isinstance(item, str) and item and item not in seen:
+                seen.add(item)
+                medals.append(item)
+    return Account(name, biscuits, levels, medals)

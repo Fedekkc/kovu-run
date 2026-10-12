@@ -10,6 +10,7 @@ import pygame
 
 class Action(StrEnum):
     PLAY = "play"
+    LAVA = "lava"
     ACCOUNTS = "accounts"
     UPGRADES = "upgrades"
     OPTIONS = "options"

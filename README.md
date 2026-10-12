@@ -34,10 +34,21 @@ Los saves van en `data/` al lado del ejecutable (`accounts.json`, ranking, opcio
 | ↑ W / Espacio | Saltar (también para subir a un vagón) |
 | ↓ S | Agacharse |
 | Clic | Menú, tienda, cuentas, opciones |
+| L | El piso es lava (menú) |
 | F11 | Pantalla completa |
 | Esc | Volver / salir |
 
 Arranca en **pantalla completa** (se puede apagar en Opciones). Hay **música en loop** y SFX (salto, galleta, crash, menú, etc.); el volumen se ajusta en Opciones.
+
+## Demo: variedad, escala y competencia
+
+- **Calor de distancia**: cuanto más lejos llegás, más valen los metros en el marcador (hasta x3 a los 10 km).
+- **Combo exclusivo**: `x2` a las 8 galletas seguidas, `x3` a las 15 (ventana corta); no es automático.
+- **Dificultad que sigue subiendo**: velocidad en dos fases, más FULL/triples late-game, techo alto.
+- **Mejoras** hasta nivel 10, con costos que suben fuerte al final.
+- **Hitos del barrio**, **medallas** (500 / 1000 / 2000 / 5000 m) y modo **El piso es lava**.
+
+Todo esto es **local en la máquina** (sin servidor). Android / pagos / anuncios quedan para más adelante.
 
 Los WAV se regeneran con:
 

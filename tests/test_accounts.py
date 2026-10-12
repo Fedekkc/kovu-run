@@ -32,7 +32,7 @@ class UpgradeTest(unittest.TestCase):
     def test_lines_show_the_next_step_until_max(self) -> None:
         rocket = lines_for({})[0]
         self.assertEqual(rocket.id, "rocket")
-        self.assertEqual(rocket.cost, 45)
+        self.assertEqual(rocket.cost, 55)
         self.assertIn("→", rocket.effect)
         self.assertEqual(rocket.effect.count("vuelo"), 1)
         maxed = lines_for({"rocket": MAX_LEVEL})[0]
@@ -40,13 +40,13 @@ class UpgradeTest(unittest.TestCase):
         self.assertNotIn("→", maxed.effect)
 
     def test_purchase_spends_biscuits_and_stops_at_max(self) -> None:
-        account = Account("KOVU", 45, {})
+        account = Account("KOVU", 55, {})
         self.assertEqual(purchase(account, "rocket"), "")
         self.assertEqual(account.biscuits, 0)
         self.assertEqual(account.levels["rocket"], 1)
         self.assertEqual(purchase(account, "rocket"), "No alcanzan las galletas.")
-        account.biscuits = 1000
-        for _ in range(10):
+        account.biscuits = 5000
+        for _ in range(MAX_LEVEL + 2):
             purchase(account, "jump")
         self.assertEqual(account.levels["jump"], MAX_LEVEL)
         self.assertEqual(purchase(account, "jump"), "Ya está al máximo.")
@@ -57,7 +57,7 @@ class UpgradeTest(unittest.TestCase):
         self.assertGreater(mods.pickup_span, 1.0)
         self.assertEqual(mods.luck_weight, 2)
         self.assertGreater(mods.bank_rate, 0.0)
-        self.assertEqual(banked_biscuits(10, mods.bank_rate), 13)
+        self.assertEqual(banked_biscuits(10, mods.bank_rate), 11)
 
     def test_catalog_has_nine_lines(self) -> None:
         self.assertEqual(len(lines_for({})), 9)

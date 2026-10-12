@@ -16,8 +16,10 @@ WIDTH = 30
 HEIGHT = 46
 SLIDE_HEIGHT = 14
 CENTER = 15
-RUN_FRAMES = 8
-BOB = (0, -1, -2, -1, 0, -1, -2, -1)
+RUN_FRAMES = 12
+BOB = (0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1)
+JUMP_FRAMES = 6
+SLIDE_FRAMES = 4
 ROCKET_FRAMES = 4
 ROCKET_TAIL = 6
 FLAMES = (9, 13, 11, 15)
@@ -60,7 +62,20 @@ def run_poses() -> list[Pose]:
 
 
 def jump_pose() -> Pose:
+    """Apex pose; also the last frame of the flip strip."""
     return Pose(bob=-1, hind_left=1.25, hind_right=1.15, front=-1.0, tail=0.4, flap=1)
+
+
+def jump_poses() -> list[Pose]:
+    """Crouch → push → apex → fall → tuck → land prep, synced to air_phase."""
+    return [
+        Pose(bob=1, hind_left=0.35, hind_right=0.25, front=0.45, tail=-0.3, flap=0),
+        Pose(bob=-1, hind_left=1.05, hind_right=0.95, front=-0.7, tail=0.15, flap=1),
+        jump_pose(),
+        Pose(bob=-1, hind_left=0.85, hind_right=0.95, front=-0.45, tail=0.55, flap=1),
+        Pose(bob=0, hind_left=-0.15, hind_right=-0.05, front=0.35, tail=0.75, flap=0),
+        Pose(bob=1, hind_left=0.45, hind_right=0.55, front=0.2, tail=0.05, flap=0),
+    ]
 
 
 def standing(pose: Pose) -> Canvas:
@@ -210,25 +225,32 @@ def _spark(c: Canvas, x: int, y: int) -> None:
         c.dot(x + dx, y + dy, Tone.SUN)
 
 
-def sliding() -> Canvas:
+def sliding(frame: int = 0) -> Canvas:
+    """Duck in, stretch, hold, ease out — frame drives paw reach and bob."""
+    phase = frame % SLIDE_FRAMES
+    stretch = (0.55, 1.0, 1.05, 0.75)[phase]
+    bob = (1, 0, 0, 1)[phase]
+    ear = (0, 1, 1, 0)[phase]
     c = Canvas(WIDTH, SLIDE_HEIGHT)
     x = CENTER
+    front = 7.0 * stretch
+    hind = 10.0 + 2.0 * stretch
     for side in (-1, 1):
-        c.line(x + side * 3, 4, x + side * 6, 3, Tone.TAN_DARK, 2)
-        _sock(c, x + side * 7, 3)
-    c.shaded(x, 4.4, 3.0, 2.7, *_COAT, Tone.TAN_SHINE)
+        c.line(x + side * 3, 4 + bob, x + side * 6, 3 + bob, Tone.TAN_DARK, 2)
+        _sock(c, x + side * front, 3 + bob)
+    c.shaded(x, 4.4 + bob, 3.0, 2.7, *_COAT, Tone.TAN_SHINE)
     for side in (-1, 1):
-        c.dot(x + side * 2, 6, Tone.TAN_DARK)
-        c.dot(x + side * 3, 7, Tone.TAN_DARK)
-    _collar(c, x, 6)
+        c.dot(x + side * 2, 6 + bob, Tone.TAN_DARK)
+        c.dot(x + side * 3, 7 + bob - ear, Tone.TAN_DARK)
+    _collar(c, x, 6 + bob)
     for side in (-1, 1):
-        c.line(x + side * 7, 10, x + side * 10, 11, Tone.TAN, 2)
-        _sock(c, x + side * 11, 11.4)
-    c.shaded(x, 8.8, 6.6, 3.2, *_COAT, Tone.TAN_SHINE)
+        c.line(x + side * 7, 10 + bob, x + side * hind, 11 + bob, Tone.TAN, 2)
+        _sock(c, x + side * (hind + 1.0), 11.4 + bob)
+    c.shaded(x, 8.8 + bob, 6.6, 3.2, *_COAT, Tone.TAN_SHINE)
     for side in (-1, 1):
-        c.shaded(x + side * 5.2, 10.0, 2.8, 2.3, *_COAT)
-    c.line(x, 9, x, 12, Tone.TAN_DARK)
-    c.dot(x, 13, Tone.CREAM)
+        c.shaded(x + side * 5.2, 10.0 + bob, 2.8, 2.3, *_COAT)
+    c.line(x, 9 + bob, x, 12 + bob, Tone.TAN_DARK)
+    c.dot(x, 13 + bob, Tone.CREAM)
     c.outline(Tone.INK)
     return c
 
